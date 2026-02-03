@@ -1,0 +1,12 @@
+[install]
+# Use exact versions for reproducible builds
+exact = true
+
+[test]
+# Enable coverage
+coverage = true
+coverageDir = "coverage"
+
+[run]
+# Silence experimental warnings
+silent = false

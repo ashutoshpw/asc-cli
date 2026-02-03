@@ -1,0 +1,39 @@
+{
+  "name": "asc",
+  "version": "0.1.0",
+  "description": "App Store Connect CLI - A fast, lightweight CLI for App Store Connect",
+  "type": "module",
+  "main": "src/index.ts",
+  "bin": {
+    "asc": "src/index.ts"
+  },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun run build.ts",
+    "build:all": "bun run scripts/build-all.ts",
+    "test": "bun test",
+    "lint": "bunx @biomejs/biome check src",
+    "format": "bunx @biomejs/biome format --write src",
+    "generate:types": "bun run scripts/generate-types.ts"
+  },
+  "dependencies": {
+    "jose": "^5.2.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.5.0",
+    "@types/bun": "^1.1.0"
+  },
+  "keywords": [
+    "app-store-connect",
+    "apple",
+    "cli",
+    "ios",
+    "macos",
+    "testflight"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "bun": ">=1.0.0"
+  }
+}
