@@ -12,16 +12,19 @@
     "build": "bun run build.ts",
     "build:all": "bun run scripts/build-all.ts",
     "test": "bun test",
+    "test:staged": "bun run scripts/precommit.ts",
     "lint": "bunx @biomejs/biome check src",
     "format": "bunx @biomejs/biome format --write src",
-    "generate:types": "bun run scripts/generate-types.ts"
+    "generate:types": "bun run scripts/generate-types.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "jose": "^5.2.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.5.0",
-    "@types/bun": "^1.1.0"
+    "@types/bun": "^1.1.0",
+    "husky": "9.1.7"
   },
   "keywords": [
     "app-store-connect",
