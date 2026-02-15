@@ -22,6 +22,7 @@ export interface ResolvedCredentials {
 	privateKeyBase64?: string;
 	source: "keychain" | "config" | "env";
 	name?: string;
+	vendorNumber?: string;
 }
 
 export interface CredentialResolutionOptions {
@@ -134,6 +135,7 @@ async function resolveFromConfig(
 		privateKeyPath: cred.private_key_path,
 		source: "config",
 		name: cred.name,
+		vendorNumber: cred.vendor_number,
 	};
 }
 
@@ -159,6 +161,7 @@ function resolveFromEnv(): ResolvedCredentials | null {
 		privateKey: env.privateKey,
 		privateKeyBase64: env.privateKeyBase64,
 		source: "env",
+		vendorNumber: env.vendorNumber,
 	};
 }
 

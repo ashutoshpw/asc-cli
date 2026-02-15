@@ -48,6 +48,10 @@ const authCommand: Command = {
 					short: "p",
 					description: "Path to private key (.p8 file)",
 				},
+				vendor: {
+					type: "string",
+					description: "Vendor number for sales/financial reports",
+				},
 				default: {
 					type: "boolean",
 					short: "d",
@@ -56,6 +60,38 @@ const authCommand: Command = {
 				},
 			},
 			execute: addCredential,
+		},
+		edit: {
+			name: "edit",
+			description: "Edit an existing credential profile",
+			options: {
+				name: {
+					type: "string",
+					short: "n",
+					description: "Name of credential to edit",
+					required: true,
+				},
+				"key-id": {
+					type: "string",
+					short: "k",
+					description: "New API Key ID",
+				},
+				"issuer-id": {
+					type: "string",
+					short: "i",
+					description: "New Issuer ID",
+				},
+				"private-key-path": {
+					type: "string",
+					short: "p",
+					description: "New path to private key (.p8 file)",
+				},
+				vendor: {
+					type: "string",
+					description: "Vendor number for sales/financial reports",
+				},
+			},
+			execute: editCredential,
 		},
 		list: {
 			name: "list",
@@ -102,6 +138,7 @@ async function addCredential(ctx: CommandContext): Promise<void> {
 	const keyId = options["key-id"] as string | undefined;
 	const issuerId = options["issuer-id"] as string | undefined;
 	const privateKeyPath = options["private-key-path"] as string | undefined;
+	const vendorNumber = options.vendor as string | undefined;
 
 	// If no credential flags provided, run interactive mode
 	if (!keyId && !issuerId && !privateKeyPath) {
@@ -145,6 +182,7 @@ async function addCredential(ctx: CommandContext): Promise<void> {
 		issuer_id: issuerId,
 		private_key_path: privateKeyPath,
 		is_default: isDefault,
+		vendor_number: vendorNumber,
 	};
 
 	await upsertCredential(cred);
@@ -152,6 +190,9 @@ async function addCredential(ctx: CommandContext): Promise<void> {
 
 	if (isDefault) {
 		printInfo("Set as default profile");
+	}
+	if (vendorNumber) {
+		printInfo(`Vendor number: ${vendorNumber}`);
 	}
 }
 
@@ -169,15 +210,143 @@ async function listCredentialsCommand(ctx: CommandContext): Promise<void> {
 	const defaultName = config?.default_key_name;
 
 	// Format for display
+	// Only use config.default_key_name as the source of truth for which profile is default
 	const displayCreds = creds.map((c) => ({
 		name: c.name,
 		keyId: c.key_id,
 		issuerId: `${c.issuer_id.slice(0, 8)}...`,
 		keyPath: c.private_key_path || "(inline)",
-		default: c.name === defaultName || c.is_default ? "yes" : "",
+		vendorNumber: c.vendor_number || "",
+		default: c.name === defaultName ? "yes" : "",
 	}));
 
 	printOutput(displayCreds, format);
+}
+
+async function editCredential(ctx: CommandContext): Promise<void> {
+	const { options } = ctx.args;
+	const name = options.name as string;
+
+	if (!name) {
+		printError("--name is required");
+		process.exit(1);
+	}
+
+	// Load existing config and find credential
+	const config = await loadConfig();
+	if (!config) {
+		printError("No config file found");
+		process.exit(1);
+	}
+
+	const existingCred = config.keys?.find((k) => k.name === name);
+	if (!existingCred) {
+		printError(`Credential "${name}" not found`);
+		process.exit(1);
+	}
+
+	// Check if any flags provided for non-interactive mode
+	const keyId = options["key-id"] as string | undefined;
+	const issuerId = options["issuer-id"] as string | undefined;
+	const privateKeyPath = options["private-key-path"] as string | undefined;
+	const vendorNumber = options.vendor as string | undefined;
+
+	// If no flags provided, run interactive mode
+	if (!keyId && !issuerId && !privateKeyPath && !vendorNumber) {
+		return editCredentialInteractive(existingCred);
+	}
+
+	// Non-interactive mode - update only provided fields
+	const updatedCred: StoredCredential = {
+		...existingCred,
+		key_id: keyId || existingCred.key_id,
+		issuer_id: issuerId || existingCred.issuer_id,
+		private_key_path: privateKeyPath || existingCred.private_key_path,
+		vendor_number: vendorNumber || existingCred.vendor_number,
+	};
+
+	// Validate private key path if provided
+	if (privateKeyPath) {
+		try {
+			await stat(privateKeyPath);
+		} catch {
+			printError(`Private key file not found: ${privateKeyPath}`);
+			process.exit(1);
+		}
+	}
+
+	await upsertCredential(updatedCred);
+	printSuccess(`Credential "${name}" updated successfully`);
+
+	if (keyId) printInfo(`Key ID: ${keyId}`);
+	if (issuerId) printInfo(`Issuer ID: ${issuerId.slice(0, 8)}...`);
+	if (privateKeyPath) printInfo(`Private key path: ${privateKeyPath}`);
+	if (vendorNumber) printInfo(`Vendor number: ${vendorNumber}`);
+}
+
+async function editCredentialInteractive(existingCred: StoredCredential): Promise<void> {
+	console.log(`\n  Editing credential profile: ${existingCred.name}\n`);
+	console.log("  Press Enter to keep current value, or type new value to update.\n");
+
+	// Key ID
+	console.log(`  Current Key ID: ${existingCred.key_id}`);
+	const keyIdInput = prompt("  New Key ID (Enter to keep): ");
+	const keyId = keyIdInput?.trim() || existingCred.key_id;
+
+	// Issuer ID
+	console.log(`  Current Issuer ID: ${existingCred.issuer_id}`);
+	const issuerIdInput = prompt("  New Issuer ID (Enter to keep): ");
+	const issuerId = issuerIdInput?.trim() || existingCred.issuer_id;
+
+	// Private key path
+	console.log(`  Current Private key path: ${existingCred.private_key_path || "(not set)"}`);
+	let privateKeyPath = existingCred.private_key_path;
+	const pathInput = prompt("  New Private key path (Enter to keep): ");
+	if (pathInput?.trim()) {
+		const trimmedPath = pathInput.trim();
+		const expandedPath = trimmedPath.startsWith("~")
+			? trimmedPath.replace("~", process.env.HOME || "")
+			: trimmedPath;
+
+		try {
+			await stat(expandedPath);
+			privateKeyPath = expandedPath;
+		} catch {
+			console.log(`  Error: File not found: ${expandedPath}. Keeping current value.`);
+		}
+	}
+
+	// Vendor number
+	console.log(`\n  Current Vendor number: ${existingCred.vendor_number || "(not set)"}`);
+	if (!existingCred.vendor_number) {
+		console.log("  To find your vendor number:");
+		console.log("    1. Go to https://appstoreconnect.apple.com/");
+		console.log("    2. Navigate to 'Sales and Trends' or 'Payments and Financial Reports'");
+		console.log("    3. Your vendor number is displayed at the top (usually 8 digits)");
+	}
+	const vendorInput = prompt("  New Vendor number (Enter to keep, 'clear' to remove): ");
+	let vendorNumber = existingCred.vendor_number;
+	if (vendorInput?.trim()) {
+		if (vendorInput.trim().toLowerCase() === "clear") {
+			vendorNumber = undefined;
+		} else {
+			vendorNumber = vendorInput.trim();
+		}
+	}
+
+	// Save updated credential
+	const updatedCred: StoredCredential = {
+		...existingCred,
+		key_id: keyId,
+		issuer_id: issuerId,
+		private_key_path: privateKeyPath,
+		vendor_number: vendorNumber,
+	};
+
+	await upsertCredential(updatedCred);
+
+	console.log("");
+	printSuccess(`Credential "${existingCred.name}" updated successfully`);
 }
 
 async function removeCredentialCommand(ctx: CommandContext): Promise<void> {
@@ -236,7 +405,7 @@ async function showStatus(ctx: CommandContext): Promise<void> {
 		return;
 	}
 
-	const status = {
+	const status: Record<string, string | boolean> = {
 		authenticated: true,
 		source: creds.source,
 		keyId: creds.keyId,
@@ -244,6 +413,10 @@ async function showStatus(ctx: CommandContext): Promise<void> {
 		profile: creds.name || "(unnamed)",
 		keyPath: creds.privateKeyPath || "(inline/env)",
 	};
+
+	if (creds.vendorNumber) {
+		status.vendorNumber = creds.vendorNumber;
+	}
 
 	printOutput(status, format);
 }
@@ -302,6 +475,17 @@ async function addCredentialInteractive(_ctx: CommandContext): Promise<void> {
 		}
 	}
 
+	// Vendor number (optional)
+	console.log("\n  Vendor Number (optional - required for sales/financial reports)");
+	console.log("  To find your vendor number:");
+	console.log("    1. Go to https://appstoreconnect.apple.com/");
+	console.log("    2. Navigate to 'Sales and Trends' or 'Payments and Financial Reports'");
+	console.log("    3. Your vendor number is displayed at the top (usually 8 digits)");
+	console.log("  You can also add this later with: asc auth edit -n <profile> -v <vendor>\n");
+
+	const vendorInput = prompt("  Vendor number (press Enter to skip): ");
+	const vendorNumber = vendorInput?.trim() || undefined;
+
 	// Set as default?
 	const existingCreds = await listCredentials();
 	let isDefault = existingCreds.length === 0; // Default to true if no existing credentials
@@ -320,6 +504,7 @@ async function addCredentialInteractive(_ctx: CommandContext): Promise<void> {
 		issuer_id: issuerId,
 		private_key_path: privateKeyPath,
 		is_default: isDefault,
+		vendor_number: vendorNumber,
 	};
 
 	await upsertCredential(cred);
@@ -329,6 +514,9 @@ async function addCredentialInteractive(_ctx: CommandContext): Promise<void> {
 
 	if (isDefault) {
 		printInfo("Set as default profile");
+	}
+	if (vendorNumber) {
+		printInfo(`Vendor number: ${vendorNumber}`);
 	}
 
 	console.log("\n  You can now use the CLI. Try: asc apps list\n");

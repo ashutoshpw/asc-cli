@@ -403,6 +403,172 @@ export class Client {
 			return url;
 		}
 	}
+
+	/**
+	 * Download sales report as a gzip stream
+	 */
+	async downloadSalesReport(params: {
+		vendorNumber: string;
+		reportType: string;
+		reportSubType: string;
+		frequency: string;
+		reportDate: string;
+		version: string;
+	}): Promise<ReadableStream> {
+		const queryParams = new URLSearchParams({
+			"filter[vendorNumber]": params.vendorNumber,
+			"filter[reportType]": params.reportType,
+			"filter[reportSubType]": params.reportSubType,
+			"filter[frequency]": params.frequency,
+			"filter[reportDate]": params.reportDate,
+			"filter[version]": params.version,
+		});
+
+		const path = `/v1/salesReports?${queryParams.toString()}`;
+		const url = `${this.baseUrl}${path}`;
+		const token = await this.getToken();
+
+		const headers: Record<string, string> = {
+			Authorization: `Bearer ${token}`,
+			Accept: "application/a-gzip",
+		};
+
+		if (this.apiDebug) {
+			this.logRequest("GET", url);
+		}
+
+		const response = await fetch(url, {
+			method: "GET",
+			headers,
+		});
+
+		if (this.apiDebug) {
+			this.logResponse(response);
+		}
+
+		if (!response.ok) {
+			throw new AppStoreConnectError(response.status, [
+				{
+					status: String(response.status),
+					code: "SALES_REPORT_ERROR",
+					title: `Failed to download sales report: ${response.statusText}`,
+				},
+			]);
+		}
+
+		if (!response.body) {
+			throw new AppStoreConnectError(500, [
+				{
+					status: "500",
+					code: "NO_RESPONSE_BODY",
+					title: "No response body received",
+				},
+			]);
+		}
+
+		return response.body;
+	}
+
+	/**
+	 * Create an analytics report request
+	 */
+	async createAnalyticsReportRequest(
+		appId: string,
+		accessType: "ONGOING" | "ONE_TIME_SNAPSHOT",
+	): Promise<unknown> {
+		const body = {
+			data: {
+				type: "analyticsReportRequests",
+				attributes: {
+					accessType,
+				},
+				relationships: {
+					app: {
+						data: {
+							type: "apps",
+							id: appId,
+						},
+					},
+				},
+			},
+		};
+
+		return this.post("/v1/analyticsReportRequests", body);
+	}
+
+	/**
+	 * List analytics report requests for an app
+	 */
+	async getAnalyticsReportRequests(appId: string): Promise<unknown> {
+		return this.get(`/v1/apps/${appId}/analyticsReportRequests`);
+	}
+
+	/**
+	 * Get analytics report request by ID
+	 */
+	async getAnalyticsReportRequest(requestId: string): Promise<unknown> {
+		return this.get(`/v1/analyticsReportRequests/${requestId}`);
+	}
+
+	/**
+	 * Get analytics reports for a request
+	 */
+	async getAnalyticsReports(requestId: string): Promise<unknown> {
+		return this.get(`/v1/analyticsReportRequests/${requestId}/reports`);
+	}
+
+	/**
+	 * Get analytics report instances
+	 */
+	async getAnalyticsReportInstances(reportId: string): Promise<unknown> {
+		return this.get(`/v1/analyticsReports/${reportId}/instances`);
+	}
+
+	/**
+	 * Get analytics report segments
+	 */
+	async getAnalyticsReportSegments(instanceId: string): Promise<unknown> {
+		return this.get(`/v1/analyticsReportInstances/${instanceId}/segments`);
+	}
+
+	/**
+	 * Download analytics report from signed URL
+	 */
+	async downloadAnalyticsReport(downloadUrl: string): Promise<ReadableStream> {
+		if (!this.isValidUrl(downloadUrl)) {
+			throw new AppStoreConnectError(400, [
+				{
+					status: "400",
+					code: "INVALID_URL",
+					title: "Invalid download URL",
+				},
+			]);
+		}
+
+		const response = await fetch(downloadUrl);
+
+		if (!response.ok) {
+			throw new AppStoreConnectError(response.status, [
+				{
+					status: String(response.status),
+					code: "DOWNLOAD_ERROR",
+					title: `Failed to download report: ${response.statusText}`,
+				},
+			]);
+		}
+
+		if (!response.body) {
+			throw new AppStoreConnectError(500, [
+				{
+					status: "500",
+					code: "NO_RESPONSE_BODY",
+					title: "No response body received",
+				},
+			]);
+		}
+
+		return response.body;
+	}
 }
 
 // Export a function to create the client (will be initialized with credentials)

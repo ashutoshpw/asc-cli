@@ -2,7 +2,13 @@ import { colors } from "../utils/terminal";
 /**
  * Command router and registry
  */
-import type { CommandOption, GlobalOptions, ParsedCommand } from "./parser";
+import {
+	type CommandOption,
+	type GlobalOptions,
+	type ParsedCommand,
+	parseArgs,
+	getGlobalOptions,
+} from "./parser";
 
 export interface CommandContext {
 	global: GlobalOptions;
@@ -87,8 +93,9 @@ export const registry = new CommandRegistry();
 export async function routeCommand(
 	args: ParsedCommand,
 	global: GlobalOptions,
+	rawArgs: string[],
 ): Promise<void> {
-	const ctx: CommandContext = { global, args };
+	let ctx: CommandContext = { global, args };
 
 	// No command specified - show help
 	if (args.command.length === 0) {
@@ -110,6 +117,13 @@ export async function routeCommand(
 	}
 
 	const { command, remainingPath } = result;
+
+	// Re-parse with command-specific options if the command has them
+	if (command.options && Object.keys(command.options).length > 0) {
+		const reparsedArgs = parseArgs(rawArgs, command.options);
+		const reparsedGlobal = getGlobalOptions(reparsedArgs.options);
+		ctx = { global: reparsedGlobal, args: reparsedArgs };
+	}
 
 	// Show help for command if requested
 	if (global.help) {

@@ -12,6 +12,7 @@ export interface StoredCredential {
 	issuer_id: string;
 	private_key_path?: string;
 	is_default?: boolean;
+	vendor_number?: string;
 }
 
 export interface ConfigFile {

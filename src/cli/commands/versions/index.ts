@@ -157,7 +157,12 @@ async function listVersions(ctx: CommandContext): Promise<void> {
 	// Build query params
 	const params = new URLSearchParams();
 	params.set("limit", String(Math.min(limit, 200)));
-	params.set("sort", (opts.sort as string) || "-createdDate");
+
+	// Note: The sort parameter is not supported by this endpoint
+	// Keeping the option for future compatibility but not using it
+	// if (opts.sort) {
+	// 	params.set("sort", opts.sort as string);
+	// }
 
 	if (opts.platform) {
 		params.set("filter[platform]", opts.platform as string);
