@@ -16,6 +16,7 @@
     "lint": "bunx @biomejs/biome check src",
     "format": "bunx @biomejs/biome format --write src",
     "generate:types": "bun run scripts/generate-types.ts",
+    "link": "bun link",
     "prepare": "husky"
   },
   "dependencies": {
@@ -34,7 +35,7 @@
     "macos",
     "testflight"
   ],
-  "author": "",
+  "author": "Ashutosh Kumar",
   "license": "MIT",
   "engines": {
     "bun": ">=1.0.0"
