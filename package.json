@@ -35,7 +35,7 @@
     "macos",
     "testflight"
   ],
-  "author": "Ashutosh Kumar",
+  "author": "Ashutosh Kumar <ashutosh@w3dev.in>",
   "license": "MIT",
   "engines": {
     "bun": ">=1.0.0"
