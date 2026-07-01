@@ -33,6 +33,19 @@ export type SubscriptionState =
 	| "REMOVED_FROM_SALE"
 	| "REJECTED";
 
+export const SUBSCRIPTION_STATES: SubscriptionState[] = [
+	"MISSING_METADATA",
+	"READY_TO_SUBMIT",
+	"WAITING_FOR_REVIEW",
+	"IN_REVIEW",
+	"DEVELOPER_ACTION_NEEDED",
+	"PENDING_BINARY_APPROVAL",
+	"APPROVED",
+	"DEVELOPER_REMOVED_FROM_SALE",
+	"REMOVED_FROM_SALE",
+	"REJECTED",
+];
+
 // Offer durations
 export type SubscriptionOfferDuration =
 	| "THREE_DAYS"
