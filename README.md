@@ -13,7 +13,7 @@ A fast, lightweight command-line interface for the [App Store Connect API](https
 
 ## Prerequisites
 
-- [Bun](https://bun.sh) ≥ 1.0.0
+- [Bun](https://bun.sh) ≥ 1.4.0
 - macOS (required for Keychain-based authentication; env var and config file auth work on any platform)
 
 ## Installation

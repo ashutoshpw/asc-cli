@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "App Store Connect CLI - A fast, lightweight CLI for App Store Connect",
   "type": "module",
+  "packageManager": "bun@1.4.0",
   "main": "src/index.ts",
   "bin": {
     "asc": "src/index.ts"
@@ -38,6 +39,6 @@
   "author": "Ashutosh Kumar <ashutosh@w3dev.in>",
   "license": "MIT",
   "engines": {
-    "bun": ">=1.0.0"
+    "bun": ">=1.4.0"
   }
 }
