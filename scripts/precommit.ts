@@ -127,12 +127,14 @@ function runStagedTests(stagedFiles: string[]): void {
 		return;
 	}
 
-	console.log(`Running tests for staged files (${stagedTestFiles.length}):`);
+	console.log(
+		`Running the full test suite for ${stagedTestFiles.length} staged test file(s):`,
+	);
 	for (const file of stagedTestFiles) {
 		console.log(`- ${file}`);
 	}
 
-	const cmd = ["bun", "test", ...stagedTestFiles];
+	const cmd = ["bun", "run", "test"];
 	const result = runCommand(cmd, true);
 	if (result.exitCode !== 0) {
 		process.exit(result.exitCode ?? 1);

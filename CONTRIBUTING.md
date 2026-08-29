@@ -18,8 +18,9 @@ bun run test:coverage
 bun run build
 ```
 
-The pre-commit hook checks staged tests and the 500-line code-file limit. The
-pre-push hook runs the complete local check command.
+The pre-commit hook checks the 500-line code-file limit and runs the full test
+suite when tests are staged. The pre-push hook runs the complete local check
+command.
 
 ## Changes and tests
 

@@ -90,7 +90,7 @@ describe("subscriptions list", () => {
 		exitSpy = spyOn(process, "exit").mockImplementation(((code?: number) => {
 			throw new Error(`EXIT:${code}`);
 		}) as never);
-		process.env.ASC_APP_ID = undefined;
+		process.env.ASC_APP_ID = "";
 	});
 
 	afterEach(() => {
@@ -98,7 +98,7 @@ describe("subscriptions list", () => {
 		logSpy.mockRestore();
 		exitSpy.mockRestore();
 		if (originalAppId === undefined) {
-			process.env.ASC_APP_ID = undefined;
+			process.env.ASC_APP_ID = "";
 		} else {
 			process.env.ASC_APP_ID = originalAppId;
 		}

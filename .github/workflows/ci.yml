@@ -83,7 +83,7 @@ jobs:
         run: bun install --frozen-lockfile --no-progress
 
       - name: Run tests
-        run: bun test
+        run: bun run test
 
       - name: Smoke-test CLI
         run: bun run src/index.ts --version
