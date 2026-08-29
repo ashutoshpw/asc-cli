@@ -1,8 +1,16 @@
 import { Client } from "../../../api/client";
-import type {
-	InAppPurchaseLocalizationResponse,
-	InAppPurchaseLocalizationsResponse,
-} from "../../../api/types/iap";
+import {
+	type CommerceVersion,
+	resolveCommerceVersion,
+} from "../../../api/commerce-versions";
+import {
+	createVersionLocalization,
+	deleteVersionLocalization,
+	getVersionLocalization,
+	listVersionLocalizations,
+	updateVersionLocalization,
+	versionLocalizationsPath,
+} from "../../../api/version-localizations";
 import { requireCredentials } from "../../../auth/credentials";
 import {
 	getOutputFormat,
@@ -12,49 +20,68 @@ import {
 } from "../../../output/formatter";
 import type { CommandContext } from "../../router";
 
-export async function listLocalizations(ctx: CommandContext): Promise<void> {
-	const format = getOutputFormat(ctx.global);
-	const iapId = ctx.args.options["iap-id"] as string;
-
+function getIapId(ctx: CommandContext): string {
+	const iapId = ctx.args.options["iap-id"] as string | undefined;
 	if (!iapId) {
 		printError("--iap-id is required");
 		process.exit(1);
 	}
+	return iapId;
+}
 
+async function getClient(ctx: CommandContext): Promise<Client> {
 	const creds = await requireCredentials({ profile: ctx.global.profile });
-	const client = await Client.fromCredentials(creds, {
+	return Client.fromCredentials(creds, {
 		debug: ctx.global.debug,
 		apiDebug: ctx.global.apiDebug,
 	});
+}
 
+function getVersionId(version: CommerceVersion): string {
+	return version.id;
+}
+
+export async function listLocalizations(ctx: CommandContext): Promise<void> {
+	const format = getOutputFormat(ctx.global);
+	const iapId = getIapId(ctx);
+	const requestedVersionId = ctx.args.options["version-id"] as
+		| string
+		| undefined;
 	const limit = Number.parseInt(ctx.args.options.limit as string, 10) || 50;
-	const paginate = ctx.args.options.paginate === true;
+	const client = await getClient(ctx);
+	const version = await resolveCommerceVersion(
+		client,
+		"iap",
+		iapId,
+		requestedVersionId,
+		false,
+	);
+	const path = versionLocalizationsPath("iap", getVersionId(version), limit);
 
-	const params = new URLSearchParams();
-	params.set("limit", String(Math.min(limit, 200)));
-
-	const path = `/v2/inAppPurchases/${iapId}/inAppPurchaseLocalizations?${params.toString()}`;
-
-	if (paginate) {
+	if (ctx.args.options.paginate === true) {
 		const localizations = await client.paginate(path);
 		printOutput({ data: localizations }, format);
-	} else {
-		const response = await client.get<InAppPurchaseLocalizationsResponse>(path);
-		printOutput(response, format);
+		return;
 	}
+
+	const localizations = await listVersionLocalizations(
+		client,
+		"iap",
+		getVersionId(version),
+	);
+	printOutput({ data: localizations.slice(0, Math.min(limit, 200)) }, format);
 }
 
 export async function createLocalization(ctx: CommandContext): Promise<void> {
 	const format = getOutputFormat(ctx.global);
-	const iapId = ctx.args.options["iap-id"] as string;
-	const locale = ctx.args.options.locale as string;
-	const name = ctx.args.options.name as string;
+	const iapId = getIapId(ctx);
+	const locale = ctx.args.options.locale as string | undefined;
+	const name = ctx.args.options.name as string | undefined;
 	const description = ctx.args.options.description as string | undefined;
+	const requestedVersionId = ctx.args.options["version-id"] as
+		| string
+		| undefined;
 
-	if (!iapId) {
-		printError("--iap-id is required");
-		process.exit(1);
-	}
 	if (!locale) {
 		printError("--locale is required");
 		process.exit(1);
@@ -64,40 +91,48 @@ export async function createLocalization(ctx: CommandContext): Promise<void> {
 		process.exit(1);
 	}
 
-	const creds = await requireCredentials({ profile: ctx.global.profile });
-	const client = await Client.fromCredentials(creds, {
-		debug: ctx.global.debug,
-		apiDebug: ctx.global.apiDebug,
-	});
-
+	const client = await getClient(ctx);
+	const version = await resolveCommerceVersion(
+		client,
+		"iap",
+		iapId,
+		requestedVersionId,
+		true,
+	);
 	const attributes: Record<string, string> = { name, locale };
 	if (description) attributes.description = description;
 
-	const response = await client.post<InAppPurchaseLocalizationResponse>(
-		"/v1/inAppPurchaseLocalizations",
-		{
-			data: {
-				type: "inAppPurchaseLocalizations",
-				attributes,
-				relationships: {
-					inAppPurchaseV2: {
-						data: { type: "inAppPurchases", id: iapId },
-					},
-				},
-			},
-		},
+	const localization = await createVersionLocalization(
+		client,
+		"iap",
+		getVersionId(version),
+		attributes,
 	);
-
 	printSuccess(`Created localization for ${locale}`);
-	printOutput(response, format);
+	printOutput({ data: localization }, format);
+}
+
+export async function getLocalization(ctx: CommandContext): Promise<void> {
+	const format = getOutputFormat(ctx.global);
+	const id = ctx.args.options.id as string | undefined;
+	if (!id) {
+		printError("--id is required");
+		process.exit(1);
+	}
+
+	const localization = await getVersionLocalization(
+		await getClient(ctx),
+		"iap",
+		id,
+	);
+	printOutput({ data: localization }, format);
 }
 
 export async function updateLocalization(ctx: CommandContext): Promise<void> {
 	const format = getOutputFormat(ctx.global);
-	const id = ctx.args.options.id as string;
+	const id = ctx.args.options.id as string | undefined;
 	const name = ctx.args.options.name as string | undefined;
 	const description = ctx.args.options.description as string | undefined;
-
 	if (!id) {
 		printError("--id is required");
 		process.exit(1);
@@ -107,35 +142,22 @@ export async function updateLocalization(ctx: CommandContext): Promise<void> {
 		process.exit(1);
 	}
 
-	const creds = await requireCredentials({ profile: ctx.global.profile });
-	const client = await Client.fromCredentials(creds, {
-		debug: ctx.global.debug,
-		apiDebug: ctx.global.apiDebug,
-	});
-
 	const attributes: Record<string, string> = {};
 	if (name) attributes.name = name;
 	if (description) attributes.description = description;
-
-	const response = await client.patch<InAppPurchaseLocalizationResponse>(
-		`/v1/inAppPurchaseLocalizations/${id}`,
-		{
-			data: {
-				type: "inAppPurchaseLocalizations",
-				id,
-				attributes,
-			},
-		},
+	const localization = await updateVersionLocalization(
+		await getClient(ctx),
+		"iap",
+		id,
+		attributes,
 	);
-
 	printSuccess(`Updated localization ${id}`);
-	printOutput(response, format);
+	printOutput({ data: localization }, format);
 }
 
 export async function deleteLocalization(ctx: CommandContext): Promise<void> {
-	const id = ctx.args.options.id as string;
+	const id = ctx.args.options.id as string | undefined;
 	const confirm = ctx.args.options.confirm === true;
-
 	if (!id) {
 		printError("--id is required");
 		process.exit(1);
@@ -145,12 +167,6 @@ export async function deleteLocalization(ctx: CommandContext): Promise<void> {
 		process.exit(1);
 	}
 
-	const creds = await requireCredentials({ profile: ctx.global.profile });
-	const client = await Client.fromCredentials(creds, {
-		debug: ctx.global.debug,
-		apiDebug: ctx.global.apiDebug,
-	});
-
-	await client.delete(`/v1/inAppPurchaseLocalizations/${id}`);
+	await deleteVersionLocalization(await getClient(ctx), "iap", id);
 	printSuccess(`Deleted localization ${id}`);
 }

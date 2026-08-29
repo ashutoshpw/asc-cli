@@ -106,7 +106,7 @@ describe("iap list --state", () => {
 	test("passes filter[state] through to the API request", async () => {
 		const getMock = mock(async (path: string) => {
 			expect(path).toContain(
-				"/v2/apps/app123/inAppPurchasesV2?limit=50&filter%5Bstate%5D=APPROVED%2CREJECTED",
+				"/v1/apps/app123/inAppPurchasesV2?limit=50&filter%5Bstate%5D=APPROVED%2CREJECTED",
 			);
 			return { data: [], links: { self: "x" } };
 		});

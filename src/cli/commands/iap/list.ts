@@ -65,7 +65,7 @@ export async function listIAPs(ctx: CommandContext): Promise<void> {
 		params.set("filter[state]", states.join(","));
 	}
 
-	const path = `/v2/apps/${appId}/inAppPurchasesV2?${params.toString()}`;
+	const path = `/v1/apps/${appId}/inAppPurchasesV2?${params.toString()}`;
 
 	if (paginate) {
 		const iaps = await client.paginate(path);

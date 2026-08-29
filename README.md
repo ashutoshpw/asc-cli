@@ -9,6 +9,9 @@ A fast, lightweight command-line interface for the [App Store Connect API](https
 - Multiple authentication methods: environment variables, config file, macOS Keychain
 - Named credential profiles for managing multiple accounts
 - Automatic retry with exponential backoff on rate limits (429) and server errors (503)
+- Versioned IAP and subscription resources, localizations, and plan availability
+- Unified review-submission workflows for app and commerce versions
+- IPA and PKG build uploads with package metadata inspection and optional processing waits
 - ANSI color output with `NO_COLOR` support
 
 ## Prerequisites
@@ -103,6 +106,7 @@ asc --profile mywork apps list
 | `asc iap` | Manage in-app purchases |
 | `asc subscriptions` | Manage auto-renewable subscriptions |
 | `asc reviews` | View customer reviews |
+| `asc review-submissions` | Manage App Store review submissions and items |
 | `asc analytics` | Sales, proceeds, and analytics reports |
 | `asc auth` | Manage authentication credentials |
 
@@ -137,6 +141,13 @@ bun run build
 The test suite uses mocked requests and local fixtures; Apple credentials and
 live App Store Connect calls are not required.
 
+The repository pins the App Store Connect API 4.4.1 route contract. Validate all
+source route references with:
+
+```sh
+bun run validate:api
+```
+
 ## Releases
 
 Releases are created by pushing a semantic version tag such as `v0.1.0`. The
@@ -155,8 +166,11 @@ sha256sum -c SHA256SUMS
 # List all apps
 asc apps list
 
+# Filter apps by bundle ID (the legacy --filter flag filters by name)
+asc apps list --bundle-id com.example.app
+
 # List builds for a specific app
-asc builds list --app-id 1234567890
+asc builds list --app 1234567890
 
 # List beta testers on TestFlight
 asc testflight testers
@@ -164,12 +178,33 @@ asc testflight testers
 # Fetch sales report for a vendor
 asc analytics sales --vendor 12345678 --date 2026-01
 
+# Inspect and upload an IPA or PKG; metadata is read from the package when possible
+asc builds upload --app 1234567890 --file ./build/Demo.ipa --wait
+
+# Manage versioned commerce metadata and submit an editable version for review
+asc iap versions list --iap-id 987654321
+asc iap localizations create --iap-id 987654321 --locale en-US --name "Coins"
+asc iap submit --id 987654321 --app 1234567890
+
+# Inspect or submit review-submission items directly
+asc review-submissions list --app 1234567890
+asc review-submissions items add --submission-id submission-id --iap-version-id version-id
+
 # Show all certificates
 asc certificates list
 
 # Use a specific profile for one command
 asc --profile clientA apps list
 ```
+
+`asc builds upload` reads the marketing version, build number, and platform
+from the package when available. Use `--version`, `--build-number`, or
+`--platform` to override missing or ambiguous metadata. `--wait` is opt-in;
+without it the command returns after the API accepts the upload checksum.
+
+The automatic commerce submit flow needs `--app` to find or create the app's
+review submission. Pass `--submission-id` instead when targeting an existing
+submission directly.
 
 ## License
 

@@ -23,3 +23,17 @@ export function isAppleHostedUrl(url: string): boolean {
 		return false;
 	}
 }
+
+/**
+ * Signed upload URLs are returned by App Store Connect and may use a
+ * dedicated Apple delivery host. They are never sent JWT credentials, so the
+ * client only permits HTTPS here and does not expose this as a general URL
+ * request primitive.
+ */
+export function isSecureUploadUrl(url: string): boolean {
+	try {
+		return new URL(url).protocol === "https:";
+	} catch {
+		return false;
+	}
+}

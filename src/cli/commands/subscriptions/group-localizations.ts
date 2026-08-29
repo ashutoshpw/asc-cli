@@ -1,8 +1,16 @@
 import { Client } from "../../../api/client";
-import type {
-	SubscriptionGroupLocalizationResponse,
-	SubscriptionGroupLocalizationsResponse,
-} from "../../../api/types/subscriptions";
+import {
+	type CommerceVersion,
+	resolveCommerceVersion,
+} from "../../../api/commerce-versions";
+import {
+	createVersionLocalization,
+	deleteVersionLocalization,
+	getVersionLocalization,
+	listVersionLocalizations,
+	updateVersionLocalization,
+	versionLocalizationsPath,
+} from "../../../api/version-localizations";
 import { requireCredentials } from "../../../auth/credentials";
 import {
 	getOutputFormat,
@@ -12,60 +20,78 @@ import {
 } from "../../../output/formatter";
 import type { Command, CommandContext } from "../../router";
 
-// ============================================================================
-// Groups localizations subcommands
-// ============================================================================
+function getGroupId(ctx: CommandContext): string {
+	const groupId = ctx.args.options["group-id"] as string | undefined;
+	if (!groupId) {
+		printError("--group-id is required");
+		process.exit(1);
+	}
+	return groupId;
+}
+
+async function getClient(ctx: CommandContext): Promise<Client> {
+	const creds = await requireCredentials({ profile: ctx.global.profile });
+	return Client.fromCredentials(creds, {
+		debug: ctx.global.debug,
+		apiDebug: ctx.global.apiDebug,
+	});
+}
+
+function getVersionId(version: CommerceVersion): string {
+	return version.id;
+}
 
 export async function listGroupLocalizations(
 	ctx: CommandContext,
 ): Promise<void> {
 	const format = getOutputFormat(ctx.global);
-	const groupId = ctx.args.options["group-id"] as string;
-
-	if (!groupId) {
-		printError("--group-id is required");
-		process.exit(1);
-	}
-
-	const creds = await requireCredentials({ profile: ctx.global.profile });
-	const client = await Client.fromCredentials(creds, {
-		debug: ctx.global.debug,
-		apiDebug: ctx.global.apiDebug,
-	});
-
+	const groupId = getGroupId(ctx);
+	const requestedVersionId = ctx.args.options["version-id"] as
+		| string
+		| undefined;
 	const limit = Number.parseInt(ctx.args.options.limit as string, 10) || 50;
-	const paginate = ctx.args.options.paginate === true;
+	const client = await getClient(ctx);
+	const version = await resolveCommerceVersion(
+		client,
+		"subscription-group",
+		groupId,
+		requestedVersionId,
+		false,
+	);
+	const path = versionLocalizationsPath(
+		"subscription-group",
+		getVersionId(version),
+		limit,
+	);
 
-	const params = new URLSearchParams();
-	params.set("limit", String(Math.min(limit, 200)));
-
-	const path = `/v1/subscriptionGroups/${groupId}/subscriptionGroupLocalizations?${params.toString()}`;
-
-	if (paginate) {
+	if (ctx.args.options.paginate === true) {
 		const localizations = await client.paginate(path);
 		printOutput({ data: localizations }, format);
-	} else {
-		const response =
-			await client.get<SubscriptionGroupLocalizationsResponse>(path);
-		printOutput(response, format);
+		return;
 	}
+
+	const localizations = await listVersionLocalizations(
+		client,
+		"subscription-group",
+		getVersionId(version),
+	);
+	printOutput({ data: localizations.slice(0, Math.min(limit, 200)) }, format);
 }
 
 export async function createGroupLocalization(
 	ctx: CommandContext,
 ): Promise<void> {
 	const format = getOutputFormat(ctx.global);
-	const groupId = ctx.args.options["group-id"] as string;
-	const locale = ctx.args.options.locale as string;
-	const name = ctx.args.options.name as string;
+	const groupId = getGroupId(ctx);
+	const locale = ctx.args.options.locale as string | undefined;
+	const name = ctx.args.options.name as string | undefined;
 	const customAppName = ctx.args.options["custom-app-name"] as
 		| string
 		| undefined;
+	const requestedVersionId = ctx.args.options["version-id"] as
+		| string
+		| undefined;
 
-	if (!groupId) {
-		printError("--group-id is required");
-		process.exit(1);
-	}
 	if (!locale) {
 		printError("--locale is required");
 		process.exit(1);
@@ -75,44 +101,35 @@ export async function createGroupLocalization(
 		process.exit(1);
 	}
 
-	const creds = await requireCredentials({ profile: ctx.global.profile });
-	const client = await Client.fromCredentials(creds, {
-		debug: ctx.global.debug,
-		apiDebug: ctx.global.apiDebug,
-	});
-
+	const client = await getClient(ctx);
+	const version = await resolveCommerceVersion(
+		client,
+		"subscription-group",
+		groupId,
+		requestedVersionId,
+		true,
+	);
 	const attributes: Record<string, string> = { name, locale };
 	if (customAppName) attributes.customAppName = customAppName;
-
-	const response = await client.post<SubscriptionGroupLocalizationResponse>(
-		"/v1/subscriptionGroupLocalizations",
-		{
-			data: {
-				type: "subscriptionGroupLocalizations",
-				attributes,
-				relationships: {
-					subscriptionGroup: {
-						data: { type: "subscriptionGroups", id: groupId },
-					},
-				},
-			},
-		},
+	const localization = await createVersionLocalization(
+		client,
+		"subscription-group",
+		getVersionId(version),
+		attributes,
 	);
-
 	printSuccess(`Created localization for ${locale}`);
-	printOutput(response, format);
+	printOutput({ data: localization }, format);
 }
 
 export async function updateGroupLocalization(
 	ctx: CommandContext,
 ): Promise<void> {
 	const format = getOutputFormat(ctx.global);
-	const id = ctx.args.options.id as string;
+	const id = ctx.args.options.id as string | undefined;
 	const name = ctx.args.options.name as string | undefined;
 	const customAppName = ctx.args.options["custom-app-name"] as
 		| string
 		| undefined;
-
 	if (!id) {
 		printError("--id is required");
 		process.exit(1);
@@ -122,37 +139,24 @@ export async function updateGroupLocalization(
 		process.exit(1);
 	}
 
-	const creds = await requireCredentials({ profile: ctx.global.profile });
-	const client = await Client.fromCredentials(creds, {
-		debug: ctx.global.debug,
-		apiDebug: ctx.global.apiDebug,
-	});
-
 	const attributes: Record<string, string> = {};
 	if (name) attributes.name = name;
 	if (customAppName) attributes.customAppName = customAppName;
-
-	const response = await client.patch<SubscriptionGroupLocalizationResponse>(
-		`/v1/subscriptionGroupLocalizations/${id}`,
-		{
-			data: {
-				type: "subscriptionGroupLocalizations",
-				id,
-				attributes,
-			},
-		},
+	const localization = await updateVersionLocalization(
+		await getClient(ctx),
+		"subscription-group",
+		id,
+		attributes,
 	);
-
 	printSuccess(`Updated localization ${id}`);
-	printOutput(response, format);
+	printOutput({ data: localization }, format);
 }
 
 export async function deleteGroupLocalization(
 	ctx: CommandContext,
 ): Promise<void> {
-	const id = ctx.args.options.id as string;
+	const id = ctx.args.options.id as string | undefined;
 	const confirm = ctx.args.options.confirm === true;
-
 	if (!id) {
 		printError("--id is required");
 		process.exit(1);
@@ -162,19 +166,13 @@ export async function deleteGroupLocalization(
 		process.exit(1);
 	}
 
-	const creds = await requireCredentials({ profile: ctx.global.profile });
-	const client = await Client.fromCredentials(creds, {
-		debug: ctx.global.debug,
-		apiDebug: ctx.global.apiDebug,
-	});
-
-	await client.delete(`/v1/subscriptionGroupLocalizations/${id}`);
+	await deleteVersionLocalization(
+		await getClient(ctx),
+		"subscription-group",
+		id,
+	);
 	printSuccess(`Deleted localization ${id}`);
 }
-
-// ============================================================================
-// Command definition
-// ============================================================================
 
 export const groupLocalizationsCommand: Command = {
 	name: "localizations",
@@ -199,6 +197,10 @@ export const groupLocalizationsCommand: Command = {
 					type: "boolean",
 					description: "Fetch all pages",
 					default: false,
+				},
+				"version-id": {
+					type: "string",
+					description: "Explicit subscription group version ID",
 				},
 			},
 			execute: listGroupLocalizations,
@@ -226,6 +228,10 @@ export const groupLocalizationsCommand: Command = {
 				"custom-app-name": {
 					type: "string",
 					description: "Custom app name",
+				},
+				"version-id": {
+					type: "string",
+					description: "Explicit subscription group version ID",
 				},
 			},
 			execute: createGroupLocalization,

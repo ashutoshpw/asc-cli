@@ -15,6 +15,7 @@
     "test": "bun test --isolate",
     "test:coverage": "bun test --isolate --coverage --coverage-reporter=lcov",
     "test:staged": "bun run scripts/precommit.ts",
+    "validate:api": "bun run scripts/validate-api-routes.ts",
     "typecheck": "tsc --noEmit --pretty false",
     "lint": "bunx @biomejs/biome check src scripts build.ts",
     "format": "bunx @biomejs/biome format --write src scripts build.ts",
@@ -23,7 +24,10 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "jose": "^6.2.10"
+    "@xmldom/xmldom": "0.9.12",
+    "fflate": "0.8.3",
+    "jose": "^6.2.10",
+    "plist": "5.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.11",

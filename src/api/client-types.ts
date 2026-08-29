@@ -21,10 +21,23 @@ export interface ClientConfig {
 }
 
 export interface RequestOptions {
-	method?: "GET" | "POST" | "PATCH" | "DELETE";
+	method?: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
 	body?: unknown;
 	headers?: Record<string, string>;
 	timeout?: number;
+}
+
+export interface UploadRequestHeader {
+	name: string;
+	value: string;
+}
+
+export interface BinaryUploadOperation {
+	method: string;
+	url: string;
+	length: number;
+	offset: number;
+	requestHeaders?: UploadRequestHeader[];
 }
 
 /**

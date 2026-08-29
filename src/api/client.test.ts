@@ -290,4 +290,71 @@ describe("App Store Connect client", () => {
 			client.downloadAnalyticsReport("https://is1-ssl.mzstatic.com/empty"),
 		).rejects.toMatchObject({ code: "NO_RESPONSE_BODY" });
 	});
+
+	test("uploads binary chunks without JWT or JSON headers", async () => {
+		const { client, calls } = makeClient(
+			async () => new Response(null, { status: 200 }),
+		);
+		const body = new Uint8Array([1, 2, 3, 4]);
+
+		await client.uploadBinary(
+			{
+				method: "PUT",
+				url: "https://upload.example.test/chunk?signature=secret",
+				length: body.byteLength,
+				offset: 12,
+				requestHeaders: [{ name: "X-Upload-Token", value: "token" }],
+			},
+			body,
+		);
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0]?.url).toBe(
+			"https://upload.example.test/chunk?signature=secret",
+		);
+		expect(calls[0]?.init?.method).toBe("PUT");
+		const headers = calls[0]?.init?.headers as Record<string, string>;
+		expect(headers["X-Upload-Token"]).toBe("token");
+		expect(headers["Content-Length"]).toBe("4");
+		expect(headers.Authorization).toBeUndefined();
+		expect(headers["Content-Type"]).toBeUndefined();
+		expect(
+			new Uint8Array(
+				await new Response(
+					calls[0]?.init?.body as Bun.XMLHttpRequestBodyInit,
+				).arrayBuffer(),
+			),
+		).toEqual(body);
+	});
+
+	test("rejects insecure signed upload URLs and forbidden forwarded headers", async () => {
+		const { client, calls } = makeClient(
+			async () => new Response(null, { status: 200 }),
+		);
+
+		await expect(
+			client.uploadBinary(
+				{
+					method: "PUT",
+					url: "http://upload.example.test/chunk",
+					length: 1,
+					offset: 0,
+				},
+				new Uint8Array([1]),
+			),
+		).rejects.toThrow("HTTPS is required");
+		await expect(
+			client.uploadBinary(
+				{
+					method: "PUT",
+					url: "https://upload.example.test/chunk",
+					length: 1,
+					offset: 0,
+					requestHeaders: [{ name: "Authorization", value: "bad" }],
+				},
+				new Uint8Array([1]),
+			),
+		).rejects.toThrow("forbidden Authorization header");
+		expect(calls).toHaveLength(0);
+	});
 });

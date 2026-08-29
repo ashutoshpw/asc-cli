@@ -23,6 +23,8 @@ export type UserRole =
 	| "CLOUD_MANAGED_APP_DISTRIBUTION"
 	| "GENERATE_INDIVIDUAL_KEYS";
 
+export const DEPRECATED_USER_ROLES: UserRole[] = ["ACCESS_TO_REPORTS"];
+
 export interface UserAttributes {
 	username: string;
 	firstName: string;
