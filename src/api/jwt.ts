@@ -65,29 +65,44 @@ export function isValidPrivateKey(key: string): boolean {
  * Simple JWT token cache to avoid regenerating tokens
  */
 class TokenCache {
-	private token: string | null = null;
-	private expiresAt = 0;
+	private readonly tokens = new Map<
+		string,
+		{ token: string; expiresAt: number }
+	>();
 
 	// Regenerate token 60 seconds before expiry
 	private readonly bufferMs = 60 * 1000;
 
 	get(keyId: string, issuerId: string): string | null {
-		// Check if we have a valid cached token
-		if (this.token && Date.now() < this.expiresAt - this.bufferMs) {
-			return this.token;
+		const cacheKey = this.cacheKey(keyId, issuerId);
+		const entry = this.tokens.get(cacheKey);
+
+		if (entry && Date.now() < entry.expiresAt - this.bufferMs) {
+			return entry.token;
 		}
+
+		if (entry) {
+			this.tokens.delete(cacheKey);
+		}
+
 		return null;
 	}
 
-	set(token: string): void {
-		this.token = token;
+	set(keyId: string, issuerId: string, token: string): void {
+		const cacheKey = this.cacheKey(keyId, issuerId);
 		// Token is valid for 20 minutes
-		this.expiresAt = Date.now() + TOKEN_LIFETIME_SECONDS * 1000;
+		this.tokens.set(cacheKey, {
+			token,
+			expiresAt: Date.now() + TOKEN_LIFETIME_SECONDS * 1000,
+		});
 	}
 
 	clear(): void {
-		this.token = null;
-		this.expiresAt = 0;
+		this.tokens.clear();
+	}
+
+	private cacheKey(keyId: string, issuerId: string): string {
+		return JSON.stringify([keyId, issuerId]);
 	}
 }
 

@@ -1,7 +1,7 @@
 /**
  * Version types
  */
-import type { ListResponse, Resource, SingleResponse } from "../../types/base";
+import type { ListResponse, Resource, SingleResponse } from "./base";
 
 export interface AppStoreVersionAttributes {
 	platform: "IOS" | "MAC_OS" | "TV_OS" | "VISION_OS";

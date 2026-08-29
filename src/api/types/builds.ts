@@ -1,7 +1,7 @@
 /**
  * Build types
  */
-import type { ListResponse, Resource, SingleResponse } from "../../types/base";
+import type { ListResponse, Resource, SingleResponse } from "./base";
 
 export interface BuildAttributes {
 	version: string;

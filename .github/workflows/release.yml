@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: .bun-version
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --no-progress
+
+      - name: Validate release version
+        id: metadata
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tags must use vMAJOR.MINOR.PATCH (received: $tag)" >&2
+            exit 1
+          fi
+          version="${tag#v}"
+          package_version="$(bun -e 'const pkg = JSON.parse(await Bun.file("package.json").text()); console.log(pkg.version)')"
+          if [[ "$version" != "$package_version" ]]; then
+            echo "Tag version $version does not match package.json version $package_version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build release binaries
+        env:
+          BUILD_DATE: ${{ github.event.head_commit.timestamp || '' }}
+          COMMIT: ${{ github.sha }}
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          if [[ -z "$BUILD_DATE" ]]; then
+            BUILD_DATE="$(git show -s --format=%cI "$GITHUB_SHA")"
+            export BUILD_DATE
+          fi
+          bun run build:all
+
+      - name: Smoke-test release binary
+        run: ./dist/asc-linux-x64 --version
+
+      - name: Verify binary outputs
+        run: |
+          test "$(find dist -maxdepth 1 -type f -name 'asc-*' | wc -l | tr -d ' ')" -eq 4
+          file dist/asc-*
+
+      - name: Create checksums
+        run: (cd dist && sha256sum asc-* > SHA256SUMS)
+
+      - name: Attest release checksums
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-checksums: dist/SHA256SUMS
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/asc-* dist/SHA256SUMS --title "asc $GITHUB_REF_NAME" --generate-notes

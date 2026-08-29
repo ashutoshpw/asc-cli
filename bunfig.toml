@@ -3,9 +3,11 @@
 exact = true
 
 [test]
-# Enable coverage
-coverage = true
+# Coverage is an explicit CI/local release gate via `bun run test:coverage`.
+coverage = false
+coverageReporter = ["text", "lcov"]
 coverageDir = "coverage"
+coverageThreshold = { line = 0.568, function = 0.48 }
 
 [run]
 # Silence experimental warnings

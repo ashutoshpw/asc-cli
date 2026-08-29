@@ -13,8 +13,8 @@ function runCommand(cmd: string[], inheritOutput = false): CommandResult {
 	});
 }
 
-function decodeOutput(output: Uint8Array): string {
-	return decoder.decode(output);
+function decodeOutput(output: Uint8Array | undefined): string {
+	return output ? decoder.decode(output) : "";
 }
 
 function failWithCommandError(cmd: string[], result: CommandResult): never {
@@ -27,7 +27,14 @@ function failWithCommandError(cmd: string[], result: CommandResult): never {
 }
 
 function getStagedFiles(): string[] {
-	const cmd = ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z"];
+	const cmd = [
+		"git",
+		"diff",
+		"--cached",
+		"--name-only",
+		"--diff-filter=ACMR",
+		"-z",
+	];
 	const result = runCommand(cmd);
 	if (result.exitCode !== 0) {
 		failWithCommandError(cmd, result);
@@ -90,18 +97,24 @@ function runLineLimitCheck(stagedFiles: string[]): void {
 	}
 
 	if (oversizedFiles.length === 0) {
-		console.log(`Line limit check passed (max ${MAX_FILE_LINES} lines per code file).`);
+		console.log(
+			`Line limit check passed (max ${MAX_FILE_LINES} lines per code file).`,
+		);
 		return;
 	}
 
-	console.error(`\nPre-commit failed: some staged files exceed ${MAX_FILE_LINES} lines:`);
+	console.error(
+		`\nPre-commit failed: some staged files exceed ${MAX_FILE_LINES} lines:`,
+	);
 	for (const file of oversizedFiles) {
 		console.error(`- ${file.file}: ${file.lines} lines`);
 	}
 	console.error("\nHow to break a large file down:");
 	console.error("1. Extract reusable utilities into focused modules.");
 	console.error("2. Split command/workflow logic into smaller feature files.");
-	console.error("3. Move types/constants/helpers into dedicated files close to usage.");
+	console.error(
+		"3. Move types/constants/helpers into dedicated files close to usage.",
+	);
 	console.error("\nReduce file size and re-stage changes before committing.");
 	process.exit(1);
 }

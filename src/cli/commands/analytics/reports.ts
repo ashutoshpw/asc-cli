@@ -218,6 +218,11 @@ export async function downloadAnalyticsReport(
 		for (let i = 0; i < segmentsResponse.data.length; i++) {
 			const segment = segmentsResponse.data[i];
 			const downloadUrl = segment.attributes.url;
+			if (!downloadUrl) {
+				throw new Error(
+					`Segment ${segment.id} does not contain a download URL`,
+				);
+			}
 
 			let filename: string;
 			if (outputPath) {

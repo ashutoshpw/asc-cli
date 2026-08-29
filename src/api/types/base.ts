@@ -14,6 +14,24 @@ export interface Resource<T> {
 }
 
 /**
+ * Typed JSON:API resource object used by the newer endpoint definitions.
+ *
+ * Resource<T> is retained for compatibility with the original endpoint
+ * types, while this form models Apple's resource type and relationships.
+ */
+export interface JSONAPIResource<
+	TType extends string = string,
+	TAttributes = unknown,
+	TRelationships = Record<string, Relationship>,
+> {
+	type: TType;
+	id: string;
+	attributes: TAttributes;
+	relationships?: TRelationships;
+	links?: ResourceLinks;
+}
+
+/**
  * JSON:API relationship
  */
 export interface Relationship {
@@ -81,6 +99,25 @@ export interface SingleResponse<T> {
 	data: Resource<T>;
 	included?: Resource<unknown>[];
 	links?: ResourceLinks;
+}
+
+/**
+ * JSON:API response containing one typed resource.
+ */
+export interface JSONAPIResponse<TResource = JSONAPIResource> {
+	data: TResource;
+	included?: JSONAPIResource[];
+	links?: ResourceLinks;
+}
+
+/**
+ * JSON:API response containing multiple typed resources.
+ */
+export interface JSONAPICollectionResponse<TResource = JSONAPIResource> {
+	data: TResource[];
+	included?: JSONAPIResource[];
+	links?: PagedLinks;
+	meta?: PagedMeta;
 }
 
 /**

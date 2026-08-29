@@ -6,6 +6,22 @@ import {
 	parseRetryAfter,
 	withRetry,
 } from "../utils/retry";
+
+import {
+	createAnalyticsReportRequest,
+	downloadAnalyticsReport as downloadAnalyticsReportFromUrl,
+	getAnalyticsReportInstances,
+	getAnalyticsReportRequest,
+	getAnalyticsReportRequests,
+	getAnalyticsReportSegments,
+	getAnalyticsReports,
+} from "./analytics";
+import {
+	APP_STORE_CONNECT_BASE_URL,
+	AppStoreConnectError,
+	type ClientConfig,
+	type RequestOptions,
+} from "./client-types";
 /**
  * App Store Connect API Client
  * Handles HTTP requests with JWT auth, retry logic, and error handling
@@ -17,76 +33,20 @@ import {
 	loadPrivateKey,
 	tokenCache,
 } from "./jwt";
+import { logRequest, logResponse } from "./logging";
 import type {
 	ErrorResponse,
 	ListResponse,
 	Resource,
 	SingleResponse,
 } from "./types/base";
+import { isAppleHostedUrl } from "./url";
 
-const BASE_URL = "https://api.appstoreconnect.apple.com";
-
-export interface ClientConfig {
-	keyId: string;
-	issuerId: string;
-	privateKey: string;
-
-	// Optional overrides
-	baseUrl?: string;
-	timeout?: number;
-	maxRetries?: number;
-	debug?: boolean;
-	apiDebug?: boolean;
-}
-
-export interface RequestOptions {
-	method?: "GET" | "POST" | "PATCH" | "DELETE";
-	body?: unknown;
-	headers?: Record<string, string>;
-	timeout?: number;
-}
-
-/**
- * API Error with status code and details
- */
-export class AppStoreConnectError extends Error {
-	constructor(
-		public readonly status: number,
-		public readonly errors: ErrorResponse["errors"],
-		message?: string,
-	) {
-		super(message || errors.map((e) => e.detail || e.title).join("; "));
-		this.name = "AppStoreConnectError";
-	}
-
-	/**
-	 * Get the first error code
-	 */
-	get code(): string {
-		return this.errors[0]?.code || "UNKNOWN";
-	}
-
-	/**
-	 * Check if error is a rate limit error
-	 */
-	get isRateLimited(): boolean {
-		return this.status === 429;
-	}
-
-	/**
-	 * Check if error is an auth error
-	 */
-	get isAuthError(): boolean {
-		return this.status === 401 || this.status === 403;
-	}
-
-	/**
-	 * Check if error is a not found error
-	 */
-	get isNotFound(): boolean {
-		return this.status === 404;
-	}
-}
+export {
+	APP_STORE_CONNECT_BASE_URL,
+	AppStoreConnectError,
+} from "./client-types";
+export type { ClientConfig, RequestOptions } from "./client-types";
 
 /**
  * App Store Connect API Client
@@ -100,19 +60,24 @@ export class Client {
 	private readonly retryOptions: RetryOptions;
 	private readonly debug: boolean;
 	private readonly apiDebug: boolean;
+	private readonly fetchImpl: typeof fetch;
 
 	constructor(config: ClientConfig) {
 		this.keyId = config.keyId;
 		this.issuerId = config.issuerId;
 		this.privateKey = config.privateKey;
-		this.baseUrl = config.baseUrl || BASE_URL;
+		this.baseUrl = config.baseUrl || APP_STORE_CONNECT_BASE_URL;
 		this.timeout = config.timeout || 90000;
 		this.debug = config.debug || false;
 		this.apiDebug = config.apiDebug || false;
+		this.fetchImpl = config.fetchImpl || globalThis.fetch;
 
 		this.retryOptions = {
 			...defaultRetryOptions,
 			maxRetries: config.maxRetries ?? defaultRetryOptions.maxRetries,
+			baseDelay: config.baseDelay ?? defaultRetryOptions.baseDelay,
+			maxDelay: config.maxDelay ?? defaultRetryOptions.maxDelay,
+			jitter: config.jitter ?? defaultRetryOptions.jitter,
 			onRetry: (attempt, error, delay) => {
 				if (this.debug) {
 					console.error(
@@ -171,7 +136,7 @@ export class Client {
 		}
 
 		const token = await generateJWT(this.keyId, this.issuerId, this.privateKey);
-		tokenCache.set(token);
+		tokenCache.set(this.keyId, this.issuerId, token);
 		return token;
 	}
 
@@ -183,7 +148,7 @@ export class Client {
 		const url = path.startsWith("http") ? path : `${this.baseUrl}${path}`;
 
 		// Validate URL for security
-		if (!this.isValidUrl(url)) {
+		if (!isAppleHostedUrl(url)) {
 			throw new Error(`Invalid URL: ${url}`);
 		}
 
@@ -208,13 +173,13 @@ export class Client {
 			}
 
 			if (this.apiDebug) {
-				this.logRequest(method, url, options.body);
+				logRequest(method, url, options.body, this.debug);
 			}
 
-			const response = await fetch(url, requestInit);
+			const response: Response = await this.fetchImpl(url, requestInit);
 
 			if (this.apiDebug) {
-				this.logResponse(response);
+				logResponse(response);
 			}
 
 			// Handle non-JSON responses (like 204 No Content)
@@ -234,33 +199,32 @@ export class Client {
 
 			// Handle errors
 			if (!response.ok) {
-				// Check if we should retry
-				if (isRetryableStatus(response.status) && method === "GET") {
-					const retryAfter = parseRetryAfter(
-						response.headers.get("Retry-After"),
-					);
-					const error = new Error(
-						`Request failed with status ${response.status}`,
-					);
-					(error as Error & { retryAfter?: number }).retryAfter = retryAfter;
-					throw error;
-				}
-
 				// Parse error response
 				if (typeof data === "object" && data !== null && "errors" in data) {
 					throw new AppStoreConnectError(
 						response.status,
 						(data as ErrorResponse).errors,
+						undefined,
+						isRetryableStatus(response.status) && method === "GET"
+							? parseRetryAfter(response.headers.get("Retry-After"))
+							: undefined,
 					);
 				}
 
-				throw new AppStoreConnectError(response.status, [
-					{
-						status: String(response.status),
-						code: "UNKNOWN",
-						title: String(data),
-					},
-				]);
+				throw new AppStoreConnectError(
+					response.status,
+					[
+						{
+							status: String(response.status),
+							code: "UNKNOWN",
+							title: String(data),
+						},
+					],
+					undefined,
+					isRetryableStatus(response.status) && method === "GET"
+						? parseRetryAfter(response.headers.get("Retry-After"))
+						: undefined,
+				);
 			}
 
 			return data as T;
@@ -325,83 +289,13 @@ export class Client {
 		let nextUrl: string | undefined = path;
 
 		while (nextUrl) {
-			const response = await this.get<ListResponse<T>>(nextUrl);
+			const response: ListResponse<T> =
+				await this.get<ListResponse<T>>(nextUrl);
 			results.push(...response.data);
 			nextUrl = response.links?.next;
 		}
 
 		return results;
-	}
-
-	/**
-	 * Validate URL to prevent credential exfiltration
-	 */
-	private isValidUrl(url: string): boolean {
-		try {
-			const parsed = new URL(url);
-			const validHosts = [
-				"api.appstoreconnect.apple.com",
-				"is1-ssl.mzstatic.com",
-				"is2-ssl.mzstatic.com",
-				"is3-ssl.mzstatic.com",
-				"is4-ssl.mzstatic.com",
-				"is5-ssl.mzstatic.com",
-			];
-
-			// Allow Apple domains
-			if (validHosts.includes(parsed.hostname)) {
-				return true;
-			}
-
-			// Allow signed URLs for analytics/assets
-			if (
-				parsed.hostname.endsWith(".apple.com") ||
-				parsed.hostname.endsWith(".mzstatic.com")
-			) {
-				return true;
-			}
-
-			return false;
-		} catch {
-			return false;
-		}
-	}
-
-	/**
-	 * Log request (debug mode)
-	 */
-	private logRequest(method: string, url: string, body?: unknown): void {
-		console.error(`[http] ${method} ${this.redactUrl(url)}`);
-		if (body && this.debug) {
-			console.error(`[http] Body: ${JSON.stringify(body, null, 2)}`);
-		}
-	}
-
-	/**
-	 * Log response (debug mode)
-	 */
-	private logResponse(response: Response): void {
-		console.error(`[http] ${response.status} ${response.statusText}`);
-	}
-
-	/**
-	 * Redact sensitive query parameters from URL
-	 */
-	private redactUrl(url: string): string {
-		try {
-			const parsed = new URL(url);
-			const sensitiveParams = ["access_token", "token", "key", "signature"];
-
-			for (const param of sensitiveParams) {
-				if (parsed.searchParams.has(param)) {
-					parsed.searchParams.set(param, "[REDACTED]");
-				}
-			}
-
-			return parsed.toString();
-		} catch {
-			return url;
-		}
 	}
 
 	/**
@@ -434,16 +328,16 @@ export class Client {
 		};
 
 		if (this.apiDebug) {
-			this.logRequest("GET", url);
+			logRequest("GET", url, undefined, this.debug);
 		}
 
-		const response = await fetch(url, {
+		const response = await this.fetchImpl(url, {
 			method: "GET",
 			headers,
 		});
 
 		if (this.apiDebug) {
-			this.logResponse(response);
+			logResponse(response);
 		}
 
 		if (!response.ok) {
@@ -469,105 +363,35 @@ export class Client {
 		return response.body;
 	}
 
-	/**
-	 * Create an analytics report request
-	 */
 	async createAnalyticsReportRequest(
 		appId: string,
 		accessType: "ONGOING" | "ONE_TIME_SNAPSHOT",
-	): Promise<unknown> {
-		const body = {
-			data: {
-				type: "analyticsReportRequests",
-				attributes: {
-					accessType,
-				},
-				relationships: {
-					app: {
-						data: {
-							type: "apps",
-							id: appId,
-						},
-					},
-				},
-			},
-		};
-
-		return this.post("/v1/analyticsReportRequests", body);
+	) {
+		return createAnalyticsReportRequest(this, appId, accessType);
 	}
 
-	/**
-	 * List analytics report requests for an app
-	 */
-	async getAnalyticsReportRequests(appId: string): Promise<unknown> {
-		return this.get(`/v1/apps/${appId}/analyticsReportRequests`);
+	async getAnalyticsReportRequests(appId: string) {
+		return getAnalyticsReportRequests(this, appId);
 	}
 
-	/**
-	 * Get analytics report request by ID
-	 */
-	async getAnalyticsReportRequest(requestId: string): Promise<unknown> {
-		return this.get(`/v1/analyticsReportRequests/${requestId}`);
+	async getAnalyticsReportRequest(requestId: string) {
+		return getAnalyticsReportRequest(this, requestId);
 	}
 
-	/**
-	 * Get analytics reports for a request
-	 */
-	async getAnalyticsReports(requestId: string): Promise<unknown> {
-		return this.get(`/v1/analyticsReportRequests/${requestId}/reports`);
+	async getAnalyticsReports(requestId: string) {
+		return getAnalyticsReports(this, requestId);
 	}
 
-	/**
-	 * Get analytics report instances
-	 */
-	async getAnalyticsReportInstances(reportId: string): Promise<unknown> {
-		return this.get(`/v1/analyticsReports/${reportId}/instances`);
+	async getAnalyticsReportInstances(reportId: string) {
+		return getAnalyticsReportInstances(this, reportId);
 	}
 
-	/**
-	 * Get analytics report segments
-	 */
-	async getAnalyticsReportSegments(instanceId: string): Promise<unknown> {
-		return this.get(`/v1/analyticsReportInstances/${instanceId}/segments`);
+	async getAnalyticsReportSegments(instanceId: string) {
+		return getAnalyticsReportSegments(this, instanceId);
 	}
 
-	/**
-	 * Download analytics report from signed URL
-	 */
-	async downloadAnalyticsReport(downloadUrl: string): Promise<ReadableStream> {
-		if (!this.isValidUrl(downloadUrl)) {
-			throw new AppStoreConnectError(400, [
-				{
-					status: "400",
-					code: "INVALID_URL",
-					title: "Invalid download URL",
-				},
-			]);
-		}
-
-		const response = await fetch(downloadUrl);
-
-		if (!response.ok) {
-			throw new AppStoreConnectError(response.status, [
-				{
-					status: String(response.status),
-					code: "DOWNLOAD_ERROR",
-					title: `Failed to download report: ${response.statusText}`,
-				},
-			]);
-		}
-
-		if (!response.body) {
-			throw new AppStoreConnectError(500, [
-				{
-					status: "500",
-					code: "NO_RESPONSE_BODY",
-					title: "No response body received",
-				},
-			]);
-		}
-
-		return response.body;
+	async downloadAnalyticsReport(downloadUrl: string) {
+		return downloadAnalyticsReportFromUrl(this.fetchImpl, downloadUrl);
 	}
 }
 

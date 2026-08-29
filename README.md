@@ -118,6 +118,36 @@ Run `asc <command> --help` for subcommands and options.
 | `--output`, `-o` | Output format: `pretty` (default), `table`, `markdown` |
 | `--profile`, `-p` | Use a named authentication profile |
 | `--debug` | Enable debug logging |
+| `--api-debug` | Enable HTTP request/response logging |
+
+## Development
+
+This repository uses Bun 1.4.0. Install dependencies and run the local quality
+gates with:
+
+```sh
+bun install
+bun run lint
+bun run typecheck
+bun test
+bun run test:coverage
+bun run build
+```
+
+The test suite uses mocked requests and local fixtures; Apple credentials and
+live App Store Connect calls are not required.
+
+## Releases
+
+Releases are created by pushing a semantic version tag such as `v0.1.0`. The
+release workflow builds standalone binaries for Darwin and Linux on arm64 and
+x64, publishes SHA-256 checksums, and attaches build provenance attestations.
+Release assets can be verified with:
+
+```sh
+sha256sum -c SHA256SUMS
+# macOS: shasum -a 256 -c SHA256SUMS
+```
 
 ## Examples
 

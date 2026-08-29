@@ -10,6 +10,12 @@ export interface RetryOptions {
 	onRetry?: (attempt: number, error: Error, delay: number) => void;
 }
 
+/** Optional HTTP metadata attached to errors that can be retried. */
+export interface RetryableErrorMetadata {
+	status?: number;
+	retryAfter?: number;
+}
+
 export const defaultRetryOptions: RetryOptions = {
 	maxRetries: 5,
 	baseDelay: 1000,
@@ -49,6 +55,11 @@ export function calculateDelay(
  */
 export function isRetryableError(error: unknown): boolean {
 	if (error instanceof Error) {
+		const status = getErrorNumber(error, "status");
+		if (status !== undefined && isRetryableStatus(status)) {
+			return true;
+		}
+
 		// Network errors
 		if (
 			error.message.includes("fetch failed") ||
@@ -60,6 +71,27 @@ export function isRetryableError(error: unknown): boolean {
 		}
 	}
 	return false;
+}
+
+/**
+ * Read a retry delay supplied by an HTTP error, when present.
+ */
+export function getRetryAfter(error: unknown): number | undefined {
+	return getErrorNumber(error, "retryAfter");
+}
+
+function getErrorNumber(
+	error: unknown,
+	property: keyof RetryableErrorMetadata,
+): number | undefined {
+	if (typeof error !== "object" || error === null) {
+		return undefined;
+	}
+
+	const value = (error as RetryableErrorMetadata)[property];
+	return typeof value === "number" && Number.isFinite(value)
+		? value
+		: undefined;
 }
 
 /**
@@ -124,7 +156,7 @@ export async function withRetry<T>(
 				throw error;
 			}
 
-			const delay = calculateDelay(attempt, opts);
+			const delay = calculateDelay(attempt, opts, getRetryAfter(lastError));
 			opts.onRetry?.(attempt + 1, lastError, delay);
 			await sleep(delay);
 		}

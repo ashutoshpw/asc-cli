@@ -6,8 +6,8 @@ import {
 	type CommandOption,
 	type GlobalOptions,
 	type ParsedCommand,
-	parseArgs,
 	getGlobalOptions,
+	parseArgs,
 } from "./parser";
 
 export interface CommandContext {
@@ -62,14 +62,16 @@ class CommandRegistry {
 			return undefined;
 		}
 
-		let current = this.commands.get(path[0]);
-		if (!current) {
+		const firstCommand = this.commands.get(path[0]);
+		if (!firstCommand) {
 			return undefined;
 		}
 
+		let current: Command = firstCommand;
+
 		let i = 1;
 		while (i < path.length && current.subcommands) {
-			const sub = current.subcommands[path[i]];
+			const sub: Command | undefined = current.subcommands[path[i]];
 			if (!sub) {
 				break;
 			}
