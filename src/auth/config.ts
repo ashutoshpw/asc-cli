@@ -230,7 +230,7 @@ export async function upsertCredential(cred: StoredCredential): Promise<void> {
  */
 export async function removeCredential(name: string): Promise<boolean> {
 	const config = await loadConfig();
-	if (!config || !config.keys) {
+	if (!config?.keys) {
 		return false;
 	}
 

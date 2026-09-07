@@ -1,7 +1,7 @@
 /**
  * CLI argument parser using native util.parseArgs
  */
-import { type ParseArgsConfig, parseArgs as nodeParseArgs } from "node:util";
+import { parseArgs as nodeParseArgs, type ParseArgsConfig } from "node:util";
 
 export interface CommandOption {
 	type: "boolean" | "string";
@@ -159,7 +159,7 @@ export function parseArgs(
 			options: normalizedOptions,
 			positionals,
 		};
-	} catch (error) {
+	} catch (_error) {
 		// On parse error, return what we can
 		return {
 			command,

@@ -21,7 +21,7 @@ import {
 	updateSubscription,
 } from "./subscriptions";
 
-export { parseStateFilter, mergeGroupSubscriptions, listSubscriptions };
+export { listSubscriptions, mergeGroupSubscriptions, parseStateFilter };
 
 const subscriptionsCommand: Command = {
 	name: "subscriptions",

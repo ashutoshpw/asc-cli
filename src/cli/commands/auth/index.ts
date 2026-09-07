@@ -1,12 +1,12 @@
 import { stat } from "node:fs/promises";
 import {
-	type StoredCredential,
 	listCredentials,
 	loadConfig,
 	removeCredential,
+	type StoredCredential,
 	upsertCredential,
 } from "../../../auth/config";
-import { hasCredentials, resolveCredentials } from "../../../auth/credentials";
+import { resolveCredentials } from "../../../auth/credentials";
 import {
 	getOutputFormat,
 	printError,

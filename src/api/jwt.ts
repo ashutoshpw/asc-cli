@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
  * JWT generation for App Store Connect API
  * Uses ES256 (ECDSA P-256) algorithm
  */
-import { SignJWT, importPKCS8 } from "jose";
+import { importPKCS8, SignJWT } from "jose";
 
 // Token lifetime: 20 minutes (same as Go implementation)
 const TOKEN_LIFETIME_SECONDS = 20 * 60;

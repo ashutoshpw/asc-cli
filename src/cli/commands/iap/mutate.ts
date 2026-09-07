@@ -8,7 +8,7 @@ import {
 	printSuccess,
 } from "../../../output/formatter";
 import type { CommandContext } from "../../router";
-import { IAP_TYPES, getAppId } from "./shared";
+import { getAppId, IAP_TYPES } from "./shared";
 
 export async function createIAP(ctx: CommandContext): Promise<void> {
 	const format = getOutputFormat(ctx.global);

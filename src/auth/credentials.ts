@@ -1,13 +1,9 @@
-import { type EnvConfig, loadEnvConfig } from "../utils/env";
+import { loadEnvConfig } from "../utils/env";
 /**
  * Credential resolution
  * Priority: Keychain > Config file > Environment variables
  */
-import {
-	type StoredCredential,
-	getCredentialFromConfig,
-	loadConfig,
-} from "./config";
+import { getCredentialFromConfig, loadConfig } from "./config";
 import {
 	getFromKeychain,
 	isKeychainAvailable,

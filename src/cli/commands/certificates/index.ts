@@ -275,7 +275,7 @@ async function downloadCertificate(ctx: CommandContext): Promise<void> {
 	}
 
 	// Decode base64 and format as PEM
-	const decodedCert = Buffer.from(certContent, "base64");
+	const _decodedCert = Buffer.from(certContent, "base64");
 	const pemCert = `-----BEGIN CERTIFICATE-----\n${certContent.match(/.{1,64}/g)?.join("\n") || certContent}\n-----END CERTIFICATE-----\n`;
 
 	if (outputPath) {

@@ -1,7 +1,7 @@
 import { stat } from "node:fs/promises";
 import {
-	type StoredCredential,
 	listCredentials,
+	type StoredCredential,
 	upsertCredential,
 } from "../../../auth/config";
 import { printInfo, printSuccess } from "../../../output/formatter";

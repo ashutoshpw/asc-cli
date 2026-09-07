@@ -3,7 +3,7 @@
  * https://developer.apple.com/documentation/appstoreconnectapi/customer_reviews
  */
 
-import type { ListResponse, Resource, SingleResponse } from "./base";
+import type { Resource } from "./base";
 
 /**
  * Customer review attributes
