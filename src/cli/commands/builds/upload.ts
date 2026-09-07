@@ -10,7 +10,6 @@ import { Client } from "../../../api/client";
 import type { BinaryUploadOperation } from "../../../api/client-types";
 import type {
 	BuildUpload,
-	BuildUploadFile,
 	BuildUploadOperation,
 } from "../../../api/types/build-uploads";
 import type { BuildResource, BuildResponse } from "../../../api/types/builds";

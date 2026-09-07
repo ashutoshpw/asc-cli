@@ -8,8 +8,8 @@ import type {
 	ReviewSubmission,
 	ReviewSubmissionItem,
 	ReviewSubmissionItemResponse,
-	ReviewSubmissionItemTarget,
 	ReviewSubmissionItemsResponse,
+	ReviewSubmissionItemTarget,
 	ReviewSubmissionResponse,
 	ReviewSubmissionsResponse,
 } from "./types/review-submissions";

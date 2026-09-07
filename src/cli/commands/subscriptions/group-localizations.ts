@@ -6,7 +6,6 @@ import {
 import {
 	createVersionLocalization,
 	deleteVersionLocalization,
-	getVersionLocalization,
 	listVersionLocalizationsResponse,
 	updateVersionLocalization,
 	versionLocalizationsPath,

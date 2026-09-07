@@ -15,11 +15,8 @@ describe("App Store Connect API route contract", () => {
 	});
 
 	test("normalizes source routes without missing the modern IAP endpoint", () => {
-		const routes = uniqueRoutes(
-			extractRoutesFromSource(
-				'client.get(`/v1/apps/${"app"}/inAppPurchasesV2?limit=50`);',
-			),
-		);
+		const source = `client.get(\`/v1/apps/${String.fromCharCode(36)}{"app"}/inAppPurchasesV2?limit=50\`);`;
+		const routes = uniqueRoutes(extractRoutesFromSource(source));
 		expect(routes).toEqual([
 			{ method: "GET", path: "/v1/apps/{id}/inAppPurchasesV2" },
 		]);

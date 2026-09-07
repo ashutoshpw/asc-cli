@@ -1,7 +1,7 @@
 import {
-	type RetryOptions,
 	isRetryableStatus,
 	parseRetryAfter,
+	type RetryOptions,
 	withRetry,
 } from "../utils/retry";
 import {
