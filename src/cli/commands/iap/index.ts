@@ -4,6 +4,7 @@ import { IAP_STATES } from "../../../api/types/iap";
  * asc iap list/get/create/update/delete/localizations
  */
 import { type Command, registry } from "../../router";
+import { iapVersionsCommand } from "../commerce-version-commands";
 import { getIAP, listIAPs, parseStateFilter } from "./list";
 import {
 	createLocalization,
@@ -153,6 +154,10 @@ const iapCommand: Command = {
 							description: "Fetch all pages automatically",
 							default: false,
 						},
+						"version-id": {
+							type: "string",
+							description: "Explicit IAP version ID",
+						},
 					},
 					execute: listLocalizations,
 				},
@@ -175,6 +180,10 @@ const iapCommand: Command = {
 							short: "n",
 							description: "Display name",
 							required: true,
+						},
+						"version-id": {
+							type: "string",
+							description: "Explicit IAP version ID",
 						},
 						description: {
 							type: "string",
@@ -225,6 +234,7 @@ const iapCommand: Command = {
 				},
 			},
 		},
+		versions: iapVersionsCommand,
 		submit: {
 			name: "submit",
 			description: "Submit an in-app purchase for review",
@@ -233,6 +243,22 @@ const iapCommand: Command = {
 					type: "string",
 					description: "In-app purchase ID",
 					required: true,
+				},
+				app: {
+					type: "string",
+					description: "App ID (required unless --submission-id is used)",
+				},
+				"version-id": {
+					type: "string",
+					description: "Explicit IAP version ID",
+				},
+				"submission-id": {
+					type: "string",
+					description: "Existing review submission ID",
+				},
+				platform: {
+					type: "string",
+					description: "Platform: IOS, MAC_OS, TV_OS, or VISION_OS",
 				},
 			},
 			execute: submitIAP,

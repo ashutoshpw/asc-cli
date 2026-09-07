@@ -17,23 +17,7 @@ import {
  * asc users list/get/update/delete/invite
  */
 import { type Command, type CommandContext, registry } from "../../router";
-
-const ROLES = [
-	"ADMIN",
-	"FINANCE",
-	"ACCOUNT_HOLDER",
-	"SALES",
-	"MARKETING",
-	"APP_MANAGER",
-	"DEVELOPER",
-	"ACCESS_TO_REPORTS",
-	"CUSTOMER_SUPPORT",
-	"IMAGE_MANAGER",
-	"CREATE_APPS",
-	"CLOUD_MANAGED_DEVELOPER_ID",
-	"CLOUD_MANAGED_APP_DISTRIBUTION",
-	"GENERATE_INDIVIDUAL_KEYS",
-];
+import { parseAssignableUserRoles } from "./validation";
 
 const usersCommand: Command = {
 	name: "users",
@@ -290,16 +274,7 @@ async function updateUser(ctx: CommandContext): Promise<void> {
 		process.exit(1);
 	}
 
-	const roles = rolesStr
-		.split(",")
-		.map((r) => r.trim().toUpperCase())
-		.filter(Boolean);
-	for (const role of roles) {
-		if (!ROLES.includes(role)) {
-			printError(`Invalid role: ${role}. Valid roles: ${ROLES.join(", ")}`);
-			process.exit(1);
-		}
-	}
+	const roles = parseAssignableUserRoles(rolesStr);
 
 	const creds = await requireCredentials({ profile: ctx.global.profile });
 	const client = await Client.fromCredentials(creds, {
@@ -370,16 +345,7 @@ async function inviteUser(ctx: CommandContext): Promise<void> {
 		process.exit(1);
 	}
 
-	const roles = rolesStr
-		.split(",")
-		.map((r) => r.trim().toUpperCase())
-		.filter(Boolean);
-	for (const role of roles) {
-		if (!ROLES.includes(role)) {
-			printError(`Invalid role: ${role}. Valid roles: ${ROLES.join(", ")}`);
-			process.exit(1);
-		}
-	}
+	const roles = parseAssignableUserRoles(rolesStr);
 
 	const creds = await requireCredentials({ profile: ctx.global.profile });
 	const client = await Client.fromCredentials(creds, {

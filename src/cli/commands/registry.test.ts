@@ -9,6 +9,7 @@ import { registerCertificatesCommands } from "./certificates";
 import { registerDevicesCommands } from "./devices";
 import { registerIapCommands } from "./iap";
 import { registerProfilesCommands } from "./profiles";
+import { registerReviewSubmissionCommands } from "./review-submissions";
 import { registerReviewsCommands } from "./reviews";
 import { registerSubscriptionsCommands } from "./subscriptions";
 import { registerTestflightCommands } from "./testflight";
@@ -31,6 +32,7 @@ describe("CLI command registry", () => {
 		registerSubscriptionsCommands();
 		registerAnalyticsCommands();
 		registerReviewsCommands();
+		registerReviewSubmissionCommands();
 
 		const expectedNames = [
 			"analytics",
@@ -43,6 +45,7 @@ describe("CLI command registry", () => {
 			"iap",
 			"profiles",
 			"reviews",
+			"review-submissions",
 			"subscriptions",
 			"testflight",
 			"users",

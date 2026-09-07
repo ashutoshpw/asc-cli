@@ -1,8 +1,16 @@
 import { Client } from "../../../api/client";
-import type {
-	SubscriptionLocalizationResponse,
-	SubscriptionLocalizationsResponse,
-} from "../../../api/types/subscriptions";
+import {
+	type CommerceVersion,
+	resolveCommerceVersion,
+} from "../../../api/commerce-versions";
+import {
+	createVersionLocalization,
+	deleteVersionLocalization,
+	getVersionLocalization,
+	listVersionLocalizationsResponse,
+	updateVersionLocalization,
+	versionLocalizationsPath,
+} from "../../../api/version-localizations";
 import { requireCredentials } from "../../../auth/credentials";
 import {
 	getOutputFormat,
@@ -12,74 +20,94 @@ import {
 } from "../../../output/formatter";
 import type { Command, CommandContext } from "../../router";
 
-// ============================================================================
-// Localizations subcommands
-// ============================================================================
-
-export async function listLocalizations(ctx: CommandContext): Promise<void> {
-	const format = getOutputFormat(ctx.global);
-	const subId = ctx.args.options["subscription-id"] as string;
-
-	if (!subId) {
+function getSubscriptionId(ctx: CommandContext): string {
+	const subscriptionId = ctx.args.options["subscription-id"] as
+		| string
+		| undefined;
+	if (!subscriptionId) {
 		printError("--subscription-id is required");
 		process.exit(1);
 	}
+	return subscriptionId;
+}
 
+async function getClient(ctx: CommandContext): Promise<Client> {
 	const creds = await requireCredentials({ profile: ctx.global.profile });
-	const client = await Client.fromCredentials(creds, {
+	return Client.fromCredentials(creds, {
 		debug: ctx.global.debug,
 		apiDebug: ctx.global.apiDebug,
 	});
+}
 
+function getVersionId(version: CommerceVersion): string {
+	return version.id;
+}
+
+export async function listLocalizations(ctx: CommandContext): Promise<void> {
+	const format = getOutputFormat(ctx.global);
+	const subscriptionId = getSubscriptionId(ctx);
+	const requestedVersionId = ctx.args.options["version-id"] as
+		| string
+		| undefined;
 	const limit = Number.parseInt(ctx.args.options.limit as string, 10) || 50;
-	const paginate = ctx.args.options.paginate === true;
+	const client = await getClient(ctx);
+	const version = await resolveCommerceVersion(
+		client,
+		"subscription",
+		subscriptionId,
+		requestedVersionId,
+		false,
+	);
+	const path = versionLocalizationsPath(
+		"subscription",
+		getVersionId(version),
+		limit,
+	);
 
-	const params = new URLSearchParams();
-	params.set("limit", String(Math.min(limit, 200)));
-
-	const path = `/v1/subscriptions/${subId}/subscriptionLocalizations?${params.toString()}`;
-
-	if (paginate) {
+	if (ctx.args.options.paginate === true) {
 		const localizations = await client.paginate(path);
 		printOutput({ data: localizations }, format);
-	} else {
-		const response = await client.get<SubscriptionLocalizationsResponse>(path);
-		printOutput(response, format);
+		return;
 	}
+
+	const response = await listVersionLocalizationsResponse(
+		client,
+		"subscription",
+		getVersionId(version),
+		limit,
+	);
+	printOutput(
+		{ ...response, data: response.data.slice(0, Math.min(limit, 200)) },
+		format,
+	);
 }
 
 export async function getLocalization(ctx: CommandContext): Promise<void> {
 	const format = getOutputFormat(ctx.global);
-	const id = ctx.args.options.id as string;
-
+	const id = ctx.args.options.id as string | undefined;
 	if (!id) {
 		printError("--id is required");
 		process.exit(1);
 	}
 
-	const creds = await requireCredentials({ profile: ctx.global.profile });
-	const client = await Client.fromCredentials(creds, {
-		debug: ctx.global.debug,
-		apiDebug: ctx.global.apiDebug,
-	});
-
-	const response = await client.get<SubscriptionLocalizationResponse>(
-		`/v1/subscriptionLocalizations/${id}`,
+	const localization = await getVersionLocalization(
+		await getClient(ctx),
+		"subscription",
+		id,
 	);
-	printOutput(response, format);
+	printOutput({ data: localization }, format);
 }
 
 export async function createLocalization(ctx: CommandContext): Promise<void> {
 	const format = getOutputFormat(ctx.global);
-	const subId = ctx.args.options["subscription-id"] as string;
-	const locale = ctx.args.options.locale as string;
-	const name = ctx.args.options.name as string;
+	const subscriptionId = getSubscriptionId(ctx);
+	const locale = ctx.args.options.locale as string | undefined;
+	const name = ctx.args.options.name as string | undefined;
 	const description = ctx.args.options.description as string | undefined;
+	const requestedVersionId = ctx.args.options["version-id"] as
+		| string
+		| undefined;
 
-	if (!subId) {
-		printError("--subscription-id is required");
-		process.exit(1);
-	}
 	if (!locale) {
 		printError("--locale is required");
 		process.exit(1);
@@ -89,40 +117,31 @@ export async function createLocalization(ctx: CommandContext): Promise<void> {
 		process.exit(1);
 	}
 
-	const creds = await requireCredentials({ profile: ctx.global.profile });
-	const client = await Client.fromCredentials(creds, {
-		debug: ctx.global.debug,
-		apiDebug: ctx.global.apiDebug,
-	});
-
+	const client = await getClient(ctx);
+	const version = await resolveCommerceVersion(
+		client,
+		"subscription",
+		subscriptionId,
+		requestedVersionId,
+		true,
+	);
 	const attributes: Record<string, string> = { name, locale };
 	if (description) attributes.description = description;
-
-	const response = await client.post<SubscriptionLocalizationResponse>(
-		"/v1/subscriptionLocalizations",
-		{
-			data: {
-				type: "subscriptionLocalizations",
-				attributes,
-				relationships: {
-					subscription: {
-						data: { type: "subscriptions", id: subId },
-					},
-				},
-			},
-		},
+	const localization = await createVersionLocalization(
+		client,
+		"subscription",
+		getVersionId(version),
+		attributes,
 	);
-
 	printSuccess(`Created localization for ${locale}`);
-	printOutput(response, format);
+	printOutput({ data: localization }, format);
 }
 
 export async function updateLocalization(ctx: CommandContext): Promise<void> {
 	const format = getOutputFormat(ctx.global);
-	const id = ctx.args.options.id as string;
+	const id = ctx.args.options.id as string | undefined;
 	const name = ctx.args.options.name as string | undefined;
 	const description = ctx.args.options.description as string | undefined;
-
 	if (!id) {
 		printError("--id is required");
 		process.exit(1);
@@ -132,35 +151,22 @@ export async function updateLocalization(ctx: CommandContext): Promise<void> {
 		process.exit(1);
 	}
 
-	const creds = await requireCredentials({ profile: ctx.global.profile });
-	const client = await Client.fromCredentials(creds, {
-		debug: ctx.global.debug,
-		apiDebug: ctx.global.apiDebug,
-	});
-
 	const attributes: Record<string, string> = {};
 	if (name) attributes.name = name;
 	if (description) attributes.description = description;
-
-	const response = await client.patch<SubscriptionLocalizationResponse>(
-		`/v1/subscriptionLocalizations/${id}`,
-		{
-			data: {
-				type: "subscriptionLocalizations",
-				id,
-				attributes,
-			},
-		},
+	const localization = await updateVersionLocalization(
+		await getClient(ctx),
+		"subscription",
+		id,
+		attributes,
 	);
-
 	printSuccess(`Updated localization ${id}`);
-	printOutput(response, format);
+	printOutput({ data: localization }, format);
 }
 
 export async function deleteLocalization(ctx: CommandContext): Promise<void> {
-	const id = ctx.args.options.id as string;
+	const id = ctx.args.options.id as string | undefined;
 	const confirm = ctx.args.options.confirm === true;
-
 	if (!id) {
 		printError("--id is required");
 		process.exit(1);
@@ -170,19 +176,9 @@ export async function deleteLocalization(ctx: CommandContext): Promise<void> {
 		process.exit(1);
 	}
 
-	const creds = await requireCredentials({ profile: ctx.global.profile });
-	const client = await Client.fromCredentials(creds, {
-		debug: ctx.global.debug,
-		apiDebug: ctx.global.apiDebug,
-	});
-
-	await client.delete(`/v1/subscriptionLocalizations/${id}`);
+	await deleteVersionLocalization(await getClient(ctx), "subscription", id);
 	printSuccess(`Deleted localization ${id}`);
 }
-
-// ============================================================================
-// Command definition
-// ============================================================================
 
 export const localizationsCommand: Command = {
 	name: "localizations",
@@ -207,6 +203,10 @@ export const localizationsCommand: Command = {
 					type: "boolean",
 					description: "Fetch all pages",
 					default: false,
+				},
+				"version-id": {
+					type: "string",
+					description: "Explicit subscription version ID",
 				},
 			},
 			execute: listLocalizations,
@@ -247,6 +247,10 @@ export const localizationsCommand: Command = {
 					type: "string",
 					short: "d",
 					description: "Localized description",
+				},
+				"version-id": {
+					type: "string",
+					description: "Explicit subscription version ID",
 				},
 			},
 			execute: createLocalization,

@@ -7,6 +7,10 @@ import {
  * asc subscriptions groups/list/get/create/update/delete/prices/availability/localizations
  */
 import { type Command, registry } from "../../router";
+import {
+	subscriptionGroupVersionsCommand,
+	subscriptionVersionsCommand,
+} from "../commerce-version-commands";
 import { availabilityCommand } from "./availability";
 import { groupsCommand } from "./groups";
 import { localizationsCommand } from "./localizations";
@@ -149,6 +153,8 @@ const subscriptionsCommand: Command = {
 		"price-points": pricePointsCommand,
 		availability: availabilityCommand,
 		localizations: localizationsCommand,
+		versions: subscriptionVersionsCommand,
+		"group-versions": subscriptionGroupVersionsCommand,
 		submit: {
 			name: "submit",
 			description: "Submit a subscription for review",
@@ -157,6 +163,22 @@ const subscriptionsCommand: Command = {
 					type: "string",
 					description: "Subscription ID",
 					required: true,
+				},
+				app: {
+					type: "string",
+					description: "App ID (required unless --submission-id is used)",
+				},
+				"version-id": {
+					type: "string",
+					description: "Explicit subscription version ID",
+				},
+				"submission-id": {
+					type: "string",
+					description: "Existing review submission ID",
+				},
+				platform: {
+					type: "string",
+					description: "Platform: IOS, MAC_OS, TV_OS, or VISION_OS",
 				},
 			},
 			execute: submitSubscription,

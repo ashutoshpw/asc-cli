@@ -1,4 +1,6 @@
 import { Client } from "../../../api/client";
+import { submitCommerceVersionForReview } from "../../../api/review-submissions";
+import type { AppStorePlatform } from "../../../api/types/commerce-versions";
 import type {
 	SubscriptionGroupsResponse,
 	SubscriptionResponse,
@@ -268,17 +270,32 @@ export async function submitSubscription(ctx: CommandContext): Promise<void> {
 		apiDebug: ctx.global.apiDebug,
 	});
 
-	const response = await client.post("/v1/subscriptionSubmissions", {
-		data: {
-			type: "subscriptionSubmissions",
-			relationships: {
-				subscription: {
-					data: { type: "subscriptions", id },
-				},
-			},
-		},
+	const platform = ctx.args.options.platform as string | undefined;
+	const normalizedPlatform = platform?.toUpperCase() as
+		| AppStorePlatform
+		| undefined;
+	if (
+		normalizedPlatform &&
+		!["IOS", "MAC_OS", "TV_OS", "VISION_OS"].includes(normalizedPlatform)
+	) {
+		printError(
+			"Invalid platform. Must be one of: IOS, MAC_OS, TV_OS, VISION_OS",
+		);
+		process.exit(1);
+	}
+
+	const result = await submitCommerceVersionForReview(client, {
+		kind: "subscription",
+		ownerId: id,
+		appId: ctx.args.options.app as string | undefined,
+		versionId: ctx.args.options["version-id"] as string | undefined,
+		submissionId: ctx.args.options["submission-id"] as string | undefined,
+		platform: normalizedPlatform,
 	});
 
 	printSuccess(`Submitted subscription ${id} for review`);
-	printOutput(response, format);
+	printOutput(
+		{ data: result.submission, item: result.item, versionId: result.versionId },
+		format,
+	);
 }

@@ -1,4 +1,6 @@
 import { Client } from "../../../api/client";
+import { submitCommerceVersionForReview } from "../../../api/review-submissions";
+import type { AppStorePlatform } from "../../../api/types/commerce-versions";
 import type { InAppPurchaseV2Response } from "../../../api/types/iap";
 import { requireCredentials } from "../../../auth/credentials";
 import {
@@ -142,17 +144,32 @@ export async function submitIAP(ctx: CommandContext): Promise<void> {
 		apiDebug: ctx.global.apiDebug,
 	});
 
-	const response = await client.post("/v1/inAppPurchaseSubmissions", {
-		data: {
-			type: "inAppPurchaseSubmissions",
-			relationships: {
-				inAppPurchaseV2: {
-					data: { type: "inAppPurchases", id },
-				},
-			},
-		},
+	const platform = ctx.args.options.platform as string | undefined;
+	const normalizedPlatform = platform?.toUpperCase() as
+		| AppStorePlatform
+		| undefined;
+	if (
+		normalizedPlatform &&
+		!["IOS", "MAC_OS", "TV_OS", "VISION_OS"].includes(normalizedPlatform)
+	) {
+		printError(
+			"Invalid platform. Must be one of: IOS, MAC_OS, TV_OS, VISION_OS",
+		);
+		process.exit(1);
+	}
+
+	const result = await submitCommerceVersionForReview(client, {
+		kind: "iap",
+		ownerId: id,
+		appId: ctx.args.options.app as string | undefined,
+		versionId: ctx.args.options["version-id"] as string | undefined,
+		submissionId: ctx.args.options["submission-id"] as string | undefined,
+		platform: normalizedPlatform,
 	});
 
 	printSuccess(`Submitted in-app purchase ${id} for review`);
-	printOutput(response, format);
+	printOutput(
+		{ data: result.submission, item: result.item, versionId: result.versionId },
+		format,
+	);
 }

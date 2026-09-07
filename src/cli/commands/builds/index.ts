@@ -12,6 +12,7 @@ import {
  * asc builds list/get/latest/expire
  */
 import { type Command, type CommandContext, registry } from "../../router";
+import { uploadCommand } from "./upload";
 
 const buildsCommand: Command = {
 	name: "builds",
@@ -113,6 +114,7 @@ const buildsCommand: Command = {
 			},
 			execute: expireBuild,
 		},
+		upload: uploadCommand,
 	},
 };
 

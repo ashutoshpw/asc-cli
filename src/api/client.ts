@@ -15,9 +15,11 @@ import {
 	getAnalyticsReportSegments,
 	getAnalyticsReports,
 } from "./analytics";
+import { uploadBinary as uploadBinaryToUrl } from "./binary-upload";
 import {
 	APP_STORE_CONNECT_BASE_URL,
 	AppStoreConnectError,
+	type BinaryUploadOperation,
 	type ClientConfig,
 	type RequestOptions,
 } from "./client-types";
@@ -36,7 +38,12 @@ import { logRequest, logResponse } from "./logging";
 import type { ErrorResponse, ListResponse, Resource } from "./types/base";
 import { isAppleHostedUrl } from "./url";
 
-export type { ClientConfig, RequestOptions } from "./client-types";
+export type {
+	BinaryUploadOperation,
+	ClientConfig,
+	RequestOptions,
+	UploadRequestHeader,
+} from "./client-types";
 export {
 	APP_STORE_CONNECT_BASE_URL,
 	AppStoreConnectError,
@@ -273,6 +280,32 @@ export class Client {
 		options?: Omit<RequestOptions, "method" | "body">,
 	): Promise<T> {
 		return this.request<T>(path, { ...options, method: "DELETE", body });
+	}
+
+	/**
+	 * Upload one binary operation to an App Store Connect signed URL.
+	 *
+	 * The URL is supplied by the API. It is intentionally handled separately
+	 * from request() so a JWT and JSON content headers can never be attached to
+	 * the delivery request.
+	 */
+	async uploadBinary(
+		operation: BinaryUploadOperation,
+		body: Uint8Array,
+		options: { timeout?: number } = {},
+	): Promise<Response> {
+		return uploadBinaryToUrl(
+			{
+				fetchImpl: this.fetchImpl,
+				timeout: this.timeout,
+				retryOptions: this.retryOptions,
+				debug: this.debug,
+				apiDebug: this.apiDebug,
+			},
+			operation,
+			body,
+			options,
+		);
 	}
 
 	/**

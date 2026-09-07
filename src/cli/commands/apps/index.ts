@@ -29,7 +29,11 @@ const appsCommand: Command = {
 				filter: {
 					type: "string",
 					short: "f",
-					description: "Filter by name or bundle ID",
+					description: "Filter by app name (legacy alias)",
+				},
+				"bundle-id": {
+					type: "string",
+					description: "Filter by bundle ID",
 				},
 				paginate: {
 					type: "boolean",
@@ -55,7 +59,7 @@ const appsCommand: Command = {
 	},
 };
 
-async function listApps(ctx: CommandContext): Promise<void> {
+export async function listApps(ctx: CommandContext): Promise<void> {
 	const format = getOutputFormat(ctx.global);
 	const creds = await requireCredentials({ profile: ctx.global.profile });
 
@@ -66,14 +70,20 @@ async function listApps(ctx: CommandContext): Promise<void> {
 
 	const limit = Number.parseInt(ctx.args.options.limit as string, 10) || 200;
 	const filter = ctx.args.options.filter as string | undefined;
+	const bundleId = ctx.args.options["bundle-id"] as string | undefined;
 	const paginate = ctx.args.options.paginate === true;
 
-	let path = `/v1/apps?limit=${Math.min(limit, 200)}`;
+	const params = new URLSearchParams();
+	params.set("limit", String(Math.min(limit, 200)));
 
-	// Add filter if provided
 	if (filter) {
-		path += `&filter[name]=${encodeURIComponent(filter)}`;
+		params.set("filter[name]", filter);
 	}
+	if (bundleId) {
+		params.set("filter[bundleId]", bundleId);
+	}
+
+	const path = `/v1/apps?${params.toString()}`;
 
 	if (paginate) {
 		const apps = await client.paginate(path);
