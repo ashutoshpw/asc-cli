@@ -19,6 +19,10 @@ export type VersionLocalization =
 	| InAppPurchaseVersionLocalization
 	| SubscriptionVersionLocalization
 	| SubscriptionGroupVersionLocalization;
+export type VersionLocalizationsResponse =
+	| InAppPurchaseVersionLocalizationsResponse
+	| SubscriptionVersionLocalizationsResponse
+	| SubscriptionGroupVersionLocalizationsResponse;
 
 interface LocalizationConfig {
 	collectionPath: string;
@@ -62,30 +66,41 @@ export function versionLocalizationsPath(
 	return `${CONFIG[kind].versionPath}/${versionId}/localizations?limit=${Math.min(limit, 200)}`;
 }
 
+export async function listVersionLocalizationsResponse(
+	client: Client,
+	kind: VersionLocalizationKind,
+	versionId: string,
+	limit = 50,
+): Promise<VersionLocalizationsResponse> {
+	if (kind === "iap") {
+		return client.get<InAppPurchaseVersionLocalizationsResponse>(
+			versionLocalizationsPath(kind, versionId, limit),
+		);
+	}
+
+	if (kind === "subscription") {
+		return client.get<SubscriptionVersionLocalizationsResponse>(
+			versionLocalizationsPath(kind, versionId, limit),
+		);
+	}
+
+	return client.get<SubscriptionGroupVersionLocalizationsResponse>(
+		versionLocalizationsPath(kind, versionId, limit),
+	);
+}
+
 export async function listVersionLocalizations(
 	client: Client,
 	kind: VersionLocalizationKind,
 	versionId: string,
+	limit = 50,
 ): Promise<VersionLocalization[]> {
-	if (kind === "iap") {
-		const response =
-			await client.get<InAppPurchaseVersionLocalizationsResponse>(
-				versionLocalizationsPath(kind, versionId),
-			);
-		return response.data;
-	}
-
-	if (kind === "subscription") {
-		const response = await client.get<SubscriptionVersionLocalizationsResponse>(
-			versionLocalizationsPath(kind, versionId),
-		);
-		return response.data;
-	}
-
-	const response =
-		await client.get<SubscriptionGroupVersionLocalizationsResponse>(
-			versionLocalizationsPath(kind, versionId),
-		);
+	const response = await listVersionLocalizationsResponse(
+		client,
+		kind,
+		versionId,
+		limit,
+	);
 	return response.data;
 }
 

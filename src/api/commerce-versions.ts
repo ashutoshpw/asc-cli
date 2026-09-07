@@ -74,23 +74,24 @@ export async function listCommerceVersions(
 	client: Client,
 	kind: CommerceVersionKind,
 	ownerId: string,
+	limit = 200,
 ): Promise<CommerceVersion[]> {
 	if (kind === "iap") {
 		const response = await client.get<InAppPurchaseVersionsResponse>(
-			ownerVersionsPath(kind, ownerId),
+			ownerVersionsPath(kind, ownerId, limit),
 		);
 		return response.data;
 	}
 
 	if (kind === "subscription") {
 		const response = await client.get<SubscriptionVersionsResponse>(
-			ownerVersionsPath(kind, ownerId),
+			ownerVersionsPath(kind, ownerId, limit),
 		);
 		return response.data;
 	}
 
 	const response = await client.get<SubscriptionGroupVersionsResponse>(
-		ownerVersionsPath(kind, ownerId),
+		ownerVersionsPath(kind, ownerId, limit),
 	);
 	return response.data;
 }

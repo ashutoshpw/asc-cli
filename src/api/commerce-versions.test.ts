@@ -3,6 +3,7 @@ import type { Client } from "./client";
 import {
 	createCommerceVersion,
 	getCommerceVersion,
+	listCommerceVersions,
 	ownerVersionsPath,
 	resolveCommerceVersion,
 } from "./commerce-versions";
@@ -47,6 +48,21 @@ describe("commerce version API helpers", () => {
 		expect(ownerVersionsPath("subscription-group", "group-1")).toBe(
 			"/v1/subscriptionGroups/group-1/versions?limit=200",
 		);
+	});
+
+	test("passes the requested list limit to the API", async () => {
+		const { client, calls } = fakeClient({
+			"/v1/subscriptions/sub-1/versions?limit=25": { data: [] },
+		});
+
+		await listCommerceVersions(client, "subscription", "sub-1", 25);
+
+		expect(calls).toEqual([
+			{
+				method: "GET",
+				path: "/v1/subscriptions/sub-1/versions?limit=25",
+			},
+		]);
 	});
 
 	test("resolves the highest editable version instead of an approved version", async () => {

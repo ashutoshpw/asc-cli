@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import type { Client } from "./client";
-import { submitCommerceVersionForReview } from "./review-submissions";
+import {
+	listReviewSubmissionItems,
+	submitCommerceVersionForReview,
+} from "./review-submissions";
 
 function resource(
 	type: string,
@@ -28,6 +31,21 @@ function fakeClient(responses: Record<string, unknown>) {
 }
 
 describe("review submission workflows", () => {
+	test("passes the requested item list limit to the API", async () => {
+		const { client, calls } = fakeClient({
+			"GET /v1/reviewSubmissions/submission-1/items?limit=25": { data: [] },
+		});
+
+		await listReviewSubmissionItems(client, "submission-1", 25);
+
+		expect(calls).toEqual([
+			{
+				method: "GET",
+				path: "/v1/reviewSubmissions/submission-1/items?limit=25",
+			},
+		]);
+	});
+
 	test("reuses an existing item and submits an explicit ready submission", async () => {
 		const { client, calls } = fakeClient({
 			"GET /v1/subscriptionVersions/version-1": {

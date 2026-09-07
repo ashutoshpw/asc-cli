@@ -100,9 +100,10 @@ export async function setReviewSubmissionState(
 export async function listReviewSubmissionItems(
 	client: Client,
 	submissionId: string,
+	limit = 200,
 ): Promise<ReviewSubmissionItem[]> {
 	const response = await client.get<ReviewSubmissionItemsResponse>(
-		`/v1/reviewSubmissions/${submissionId}/items?limit=200`,
+		`/v1/reviewSubmissions/${submissionId}/items?limit=${Math.min(limit, 200)}`,
 	);
 	return response.data;
 }

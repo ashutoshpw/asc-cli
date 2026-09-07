@@ -203,16 +203,23 @@ function extractXarFile(bytes: Uint8Array, requestedName: string): Uint8Array {
 	);
 	if (!entry)
 		throw new Error(`PKG XAR archive does not contain ${requestedName}`);
+	// XAR data offsets are relative to the start of the heap, which follows
+	// the header and compressed TOC. Treating them as archive-absolute works
+	// only for fixtures that encode non-standard archive-absolute offsets.
+	const heapStart = tocEnd;
+	const dataStart = heapStart + entry.offset;
 	if (
 		entry.offset < 0 ||
 		entry.size < 0 ||
 		entry.length < 0 ||
-		entry.offset + entry.length > bytes.length
+		!Number.isSafeInteger(dataStart) ||
+		dataStart < heapStart ||
+		dataStart + entry.length > bytes.length
 	) {
 		throw new Error(`PKG XAR entry ${requestedName} is outside the archive`);
 	}
 
-	const encoded = bytes.subarray(entry.offset, entry.offset + entry.length);
+	const encoded = bytes.subarray(dataStart, dataStart + entry.length);
 	try {
 		const decoded = entry.encoding?.includes("gzip")
 			? gunzipSync(encoded)

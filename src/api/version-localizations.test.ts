@@ -4,6 +4,7 @@ import {
 	createVersionLocalization,
 	deleteVersionLocalization,
 	listVersionLocalizations,
+	listVersionLocalizationsResponse,
 	updateVersionLocalization,
 	versionLocalizationsPath,
 } from "./version-localizations";
@@ -55,7 +56,7 @@ describe("version localization API helpers", () => {
 	test("creates, updates, lists, and deletes v2 localizations", async () => {
 		const { client, calls } = fakeClient();
 
-		await listVersionLocalizations(client, "iap", "version-1");
+		await listVersionLocalizations(client, "iap", "version-1", 75);
 		await createVersionLocalization(client, "iap", "version-1", {
 			name: "Name",
 			locale: "en-US",
@@ -67,7 +68,7 @@ describe("version localization API helpers", () => {
 		await deleteVersionLocalization(client, "iap", "loc-1");
 
 		expect(calls.map(({ method, path }) => `${method} ${path}`)).toEqual([
-			"GET /v1/inAppPurchaseVersions/version-1/localizations?limit=50",
+			"GET /v1/inAppPurchaseVersions/version-1/localizations?limit=75",
 			"POST /v2/inAppPurchaseLocalizations",
 			"PATCH /v2/inAppPurchaseLocalizations/loc-1",
 			"DELETE /v2/inAppPurchaseLocalizations/loc-1",
@@ -87,5 +88,25 @@ describe("version localization API helpers", () => {
 				},
 			},
 		});
+	});
+
+	test("keeps pagination metadata available to callers", async () => {
+		const response = {
+			data: [],
+			links: { next: "https://api.appstoreconnect.apple.com/page-2" },
+		};
+		const client = {
+			get: async () => response,
+		} as unknown as Client;
+
+		const result = await listVersionLocalizationsResponse(
+			client,
+			"iap",
+			"version-1",
+		);
+
+		expect(result.links?.next).toBe(
+			"https://api.appstoreconnect.apple.com/page-2",
+		);
 	});
 });

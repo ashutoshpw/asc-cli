@@ -146,7 +146,7 @@ async function listItems(ctx: CommandContext): Promise<void> {
 		printOutput({ data: await client.paginate(path) }, format);
 		return;
 	}
-	const items = await listReviewSubmissionItems(client, submissionId);
+	const items = await listReviewSubmissionItems(client, submissionId, limit);
 	printOutput({ data: items.slice(0, Math.min(limit, 200)) }, format);
 }
 

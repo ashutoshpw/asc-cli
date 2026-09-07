@@ -13,7 +13,9 @@ function makeXarPackageInfo(
 	const xmlBytes = new TextEncoder().encode(contents);
 	const payload = encoding === "gzip" ? gzipSync(xmlBytes) : xmlBytes;
 	const headerSize = 28;
-	const offset = 4096;
+	// XAR offsets are relative to the heap, immediately after the compressed
+	// TOC, rather than absolute archive offsets.
+	const offset = 0;
 	const tocDocument = `<?xml version="1.0" encoding="UTF-8"?><xar><toc><file><name>PackageInfo</name><data><offset>${offset}</offset><size>${xmlBytes.byteLength}</size><length>${payload.byteLength}</length>${encoding === "gzip" ? '<encoding style="application/x-gzip"/>' : ""}</data></file></toc></xar>`;
 	const toc = new TextEncoder().encode(tocDocument);
 	const compressed = zlibSync(toc);
@@ -25,10 +27,11 @@ function makeXarPackageInfo(
 	view.setBigUint64(8, BigInt(compressed.byteLength), false);
 	view.setBigUint64(16, BigInt(toc.byteLength), false);
 	view.setUint32(24, 0, false);
-	const archive = new Uint8Array(offset + payload.byteLength);
+	const heapStart = headerSize + compressed.byteLength;
+	const archive = new Uint8Array(heapStart + offset + payload.byteLength);
 	archive.set(header, 0);
 	archive.set(compressed, header.byteLength);
-	archive.set(payload, offset);
+	archive.set(payload, heapStart + offset);
 	return archive;
 }
 

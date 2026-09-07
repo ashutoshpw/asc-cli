@@ -7,7 +7,7 @@ import {
 	createVersionLocalization,
 	deleteVersionLocalization,
 	getVersionLocalization,
-	listVersionLocalizations,
+	listVersionLocalizationsResponse,
 	updateVersionLocalization,
 	versionLocalizationsPath,
 } from "../../../api/version-localizations";
@@ -64,12 +64,16 @@ export async function listLocalizations(ctx: CommandContext): Promise<void> {
 		return;
 	}
 
-	const localizations = await listVersionLocalizations(
+	const response = await listVersionLocalizationsResponse(
 		client,
 		"iap",
 		getVersionId(version),
+		limit,
 	);
-	printOutput({ data: localizations.slice(0, Math.min(limit, 200)) }, format);
+	printOutput(
+		{ ...response, data: response.data.slice(0, Math.min(limit, 200)) },
+		format,
+	);
 }
 
 export async function createLocalization(ctx: CommandContext): Promise<void> {

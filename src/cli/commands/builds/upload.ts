@@ -1,4 +1,4 @@
-import { readFile, stat } from "node:fs/promises";
+import { open } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
 	commitBuildUploadFile,
@@ -182,18 +182,24 @@ export async function uploadBuild(ctx: CommandContext): Promise<void> {
 	if (!inputPath) throw new Error("--file is required");
 
 	const filePath = resolve(inputPath);
-	const fileStat = await stat(filePath);
-	if (!fileStat.isFile())
-		throw new Error(`Build path is not a file: ${inputPath}`);
-	if (fileStat.size < 1 || fileStat.size > Number.MAX_SAFE_INTEGER) {
-		throw new Error(
-			"Build file size must be between 1 byte and Number.MAX_SAFE_INTEGER",
-		);
-	}
+	const file = await open(filePath, "r");
+	let bytes: Uint8Array;
+	try {
+		const fileStat = await file.stat();
+		if (!fileStat.isFile())
+			throw new Error(`Build path is not a file: ${inputPath}`);
+		if (fileStat.size < 1 || fileStat.size > Number.MAX_SAFE_INTEGER) {
+			throw new Error(
+				"Build file size must be between 1 byte and Number.MAX_SAFE_INTEGER",
+			);
+		}
 
-	const bytes = new Uint8Array(await readFile(filePath));
-	if (bytes.byteLength !== fileStat.size) {
-		throw new Error("Build file changed while it was being read");
+		bytes = new Uint8Array(await file.readFile());
+		if (bytes.byteLength !== fileStat.size) {
+			throw new Error("Build file changed while it was being read");
+		}
+	} finally {
+		await file.close();
 	}
 	const fileName = filePath.split(/[\\/]/).pop() ?? filePath;
 	const inspected = inspectBuildPackageBytes(bytes, fileName);

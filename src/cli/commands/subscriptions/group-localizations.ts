@@ -7,7 +7,7 @@ import {
 	createVersionLocalization,
 	deleteVersionLocalization,
 	getVersionLocalization,
-	listVersionLocalizations,
+	listVersionLocalizationsResponse,
 	updateVersionLocalization,
 	versionLocalizationsPath,
 } from "../../../api/version-localizations";
@@ -70,12 +70,16 @@ export async function listGroupLocalizations(
 		return;
 	}
 
-	const localizations = await listVersionLocalizations(
+	const response = await listVersionLocalizationsResponse(
 		client,
 		"subscription-group",
 		getVersionId(version),
+		limit,
 	);
-	printOutput({ data: localizations.slice(0, Math.min(limit, 200)) }, format);
+	printOutput(
+		{ ...response, data: response.data.slice(0, Math.min(limit, 200)) },
+		format,
+	);
 }
 
 export async function createGroupLocalization(

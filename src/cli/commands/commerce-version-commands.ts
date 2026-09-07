@@ -91,7 +91,12 @@ function makeVersionCommand(
 						return;
 					}
 
-					const versions = await listCommerceVersions(client, kind, ownerId);
+					const versions = await listCommerceVersions(
+						client,
+						kind,
+						ownerId,
+						limit,
+					);
 					printOutput(
 						{ data: versions.slice(0, Math.min(limit, 200)) },
 						format,
