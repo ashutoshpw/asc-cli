@@ -5,8 +5,8 @@ import { colors } from "../utils/terminal";
 import {
 	type CommandOption,
 	type GlobalOptions,
-	type ParsedCommand,
 	getGlobalOptions,
+	type ParsedCommand,
 	parseArgs,
 } from "./parser";
 

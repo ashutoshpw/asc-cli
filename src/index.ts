@@ -18,7 +18,7 @@ import { registerVersionsCommands } from "./cli/commands/versions";
  * Main entry point
  */
 import { getGlobalOptions, parseArgs } from "./cli/parser";
-import { registry, routeCommand } from "./cli/router";
+import { routeCommand } from "./cli/router";
 
 // Register all commands
 registerAuthCommands();

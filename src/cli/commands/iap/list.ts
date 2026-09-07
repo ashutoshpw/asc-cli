@@ -2,8 +2,8 @@ import { Client } from "../../../api/client";
 import {
 	IAP_STATES,
 	type InAppPurchaseState,
-	type InAppPurchaseV2Response,
 	type InAppPurchasesV2Response,
+	type InAppPurchaseV2Response,
 } from "../../../api/types/iap";
 import { requireCredentials } from "../../../auth/credentials";
 import {

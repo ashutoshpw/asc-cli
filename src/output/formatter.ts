@@ -62,7 +62,7 @@ export function formatPretty(data: unknown): string {
 /**
  * Colorize JSON string
  */
-function colorizeJson(json: string): string {
+function _colorizeJson(json: string): string {
 	// Simple regex-based colorization
 	return (
 		json
@@ -190,7 +190,7 @@ function renderTable(items: Record<string, unknown>[]): string {
 	}
 
 	const columns = Array.from(keys);
-	const termWidth = getTerminalWidth();
+	const _termWidth = getTerminalWidth();
 
 	// Calculate column widths
 	const widths: Record<string, number> = {};

@@ -13,7 +13,7 @@ import {
 } from "./localizations";
 import { createIAP, deleteIAP, submitIAP, updateIAP } from "./mutate";
 
-export { parseStateFilter, listIAPs };
+export { listIAPs, parseStateFilter };
 
 const iapCommand: Command = {
 	name: "iap",

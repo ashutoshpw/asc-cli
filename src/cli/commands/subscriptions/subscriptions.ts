@@ -13,8 +13,11 @@ import {
 	printSuccess,
 } from "../../../output/formatter";
 import type { CommandContext } from "../../router";
-import { parseStateFilter, validateSubscriptionPeriod } from "./shared";
-import { mergeGroupSubscriptions } from "./shared";
+import {
+	mergeGroupSubscriptions,
+	parseStateFilter,
+	validateSubscriptionPeriod,
+} from "./shared";
 
 // ============================================================================
 // Subscription CRUD commands

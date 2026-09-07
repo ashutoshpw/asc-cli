@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { loadEnvConfig, requireEnv } from "../utils/env";
 import {
 	type ConfigFile,
-	type StoredCredential,
 	getCredentialFromConfig,
+	type StoredCredential,
 } from "./config";
 
 const firstCredential: StoredCredential = {

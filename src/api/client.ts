@@ -1,9 +1,8 @@
 import {
-	type RetryOptions,
-	calculateDelay,
 	defaultRetryOptions,
 	isRetryableStatus,
 	parseRetryAfter,
+	type RetryOptions,
 	withRetry,
 } from "../utils/retry";
 
@@ -34,19 +33,14 @@ import {
 	tokenCache,
 } from "./jwt";
 import { logRequest, logResponse } from "./logging";
-import type {
-	ErrorResponse,
-	ListResponse,
-	Resource,
-	SingleResponse,
-} from "./types/base";
+import type { ErrorResponse, ListResponse, Resource } from "./types/base";
 import { isAppleHostedUrl } from "./url";
 
+export type { ClientConfig, RequestOptions } from "./client-types";
 export {
 	APP_STORE_CONNECT_BASE_URL,
 	AppStoreConnectError,
 } from "./client-types";
-export type { ClientConfig, RequestOptions } from "./client-types";
 
 /**
  * App Store Connect API Client
@@ -396,4 +390,4 @@ export class Client {
 }
 
 // Export a function to create the client (will be initialized with credentials)
-export type { ListResponse, SingleResponse, Resource } from "./types/base";
+export type { ListResponse, Resource, SingleResponse } from "./types/base";
